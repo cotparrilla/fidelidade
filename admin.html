@@ -1,0 +1,2256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Admin</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#131313; --linha:#2B2B2B;
+    --branco:#FFF; --cinza:#A8A8A2; --cinza2:#6E6E68;
+    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
+    --campo:#E9E7DF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--preto); color:var(--branco); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px; border-bottom:1px solid var(--linha);
+    position:sticky; top:0; background:var(--preto); z-index:10;
+  }
+  header img{height:38px}
+  header .t{font-size:13px; letter-spacing:.18em; color:var(--cinza)}
+
+  nav{
+    display:flex; gap:4px; padding:12px 18px 0; border-bottom:1px solid var(--linha);
+    overflow-x:auto;
+  }
+  nav button{
+    background:none; border:none; color:var(--cinza); font-size:15px; font-weight:700;
+    padding:10px 16px 14px; cursor:pointer; border-bottom:3px solid transparent;
+    white-space:nowrap; font-family:inherit;
+  }
+  nav button.on{color:var(--branco); border-bottom-color:var(--rubro)}
+
+  main{padding:22px; max-width:1100px; margin:0 auto}
+  .aba{display:none}
+  .aba.on{display:block}
+
+  h2{font-size:20px; font-weight:800; margin-bottom:14px}
+  .sub{color:var(--cinza); font-size:14px; margin:-8px 0 18px}
+
+  .cartao{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
+    padding:20px; margin-bottom:18px;
+  }
+
+  label{display:block; font-size:12px; font-weight:700; letter-spacing:.1em; color:var(--cinza); margin:0 0 6px 2px}
+  input, select, textarea{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:16px; font-weight:600; padding:12px; border-radius:10px; font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--ambar)}
+  .linha{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end}
+  .linha > div{flex:1; min-width:180px; margin-bottom:14px}
+
+  .btn{
+    background:var(--branco); color:#000; border:none; border-radius:10px;
+    padding:13px 22px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn.sec{background:transparent; color:var(--branco); border:2px solid #4A4A4A}
+  .btn.perigo{background:var(--rubro); color:#fff}
+
+  table{width:100%; min-width:760px; border-collapse:collapse; font-size:14px}
+  th{
+    text-align:left; color:var(--cinza); font-size:11px; letter-spacing:.1em;
+    padding:10px 12px; border-bottom:1px solid var(--linha); white-space:nowrap;
+  }
+  td{padding:11px 12px; border-bottom:1px solid #1D1D1D; vertical-align:middle}
+  tr:hover td{background:#181818}
+  .num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .pill{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700;
+  }
+  .pill.ok{background:var(--verde); color:#fff}
+  .pill.atencao{background:var(--ambar); color:#151000}
+  .pill.neutro{background:#2A2A2A; color:var(--cinza)}
+
+  .msg{margin-top:12px; font-size:14px; font-weight:600; min-height:20px}
+  .msg.ok{color:#5FD08A}
+  .msg.erro{color:#FF6B6B}
+  .carregando{color:var(--cinza); padding:30px 0; text-align:center}
+  .mini{font-size:12px; color:var(--cinza2)}
+  .btn-x{
+    background:none; border:1px solid #4A2A2A; color:#C96A6A; border-radius:8px;
+    padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .btn-x-sm{padding:4px 7px}
+  .btn-x:hover{background:var(--rubro); border-color:var(--rubro); color:#fff}
+  #modal{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:100; align-items:center; justify-content:center; padding:20px;
+  }
+  #modal.on{display:flex}
+  #modal .caixa{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:16px;
+    padding:26px; max-width:420px; width:100%;
+  }
+  #modal h3{font-size:19px; font-weight:800; margin-bottom:10px}
+  #modal p{color:var(--cinza); font-size:15px; line-height:1.5; margin-bottom:22px}
+  #modal .acoes{display:flex; gap:10px}
+  #modal .acoes .btn{flex:1}
+  .f-drop{position:relative; display:inline-block}
+  .f-btn{
+    background:none; color:var(--cinza); border:none; border-radius:6px;
+    padding:2px 4px; font-size:11px; font-weight:700; letter-spacing:.1em;
+    cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .f-btn:hover{color:var(--branco)}
+  .f-btn.ativo{color:var(--ambar)}
+  .f-drop{position:relative}
+  .f-painel{
+    display:none; position:absolute; top:26px; left:0; z-index:30;
+    background:var(--preto2); border:1px solid #3A3A3A; border-radius:10px;
+    padding:10px; min-width:200px; max-height:280px; overflow-y:auto;
+  }
+  .f-painel.on{display:block}
+  .f-painel .tn{display:flex; gap:12px; font-size:12px; font-weight:700; color:var(--ambar); margin-bottom:8px}
+  .f-painel .tn span{cursor:pointer}
+  .f-painel label{
+    display:flex; align-items:center; gap:8px; font-size:13px; font-weight:400;
+    color:var(--branco); padding:4px 0; letter-spacing:0; cursor:pointer;
+  }
+  .f-painel input[type=checkbox]{width:auto}
+  #pm-tabela input[type=checkbox]{width:auto}
+  #pm-tabela td, #pm-tabela th{padding:8px 10px}
+  #modal-qr{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.75);
+    z-index:100; align-items:center; justify-content:center; padding:20px;
+  }
+  #modal-qr.on{display:flex}
+  #modal-qr .caixa{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:16px;
+    padding:26px; max-width:420px; width:100%; text-align:center;
+  }
+  #modal-qr h3{font-size:18px; font-weight:800; margin-bottom:16px}
+  #mq-img{width:240px; height:240px; border-radius:12px; background:#FFF; padding:10px}
+  #mq-link{
+    background:#1D1D1D; border:1px solid var(--linha); border-radius:10px;
+    padding:10px 12px; font-size:12px; color:var(--cinza); word-break:break-all;
+    margin:14px 0 16px; text-align:left;
+  }
+  #modal-qr .acoes{display:flex; gap:10px}
+  #modal-qr .acoes .btn{flex:1}
+  .pill-msg{
+    display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800;
+    background:var(--ambar); color:#151000; cursor:pointer; border:none; font-family:inherit;
+  }
+  .pill-msg:hover{filter:brightness(1.1)}
+</style>
+</head>
+<body>
+
+<header>
+  <img src="clube_logo.png" alt="Clube Backbone">
+  <div style="display:flex; align-items:center; gap:10px">
+    <div class="t">ADMIN</div>
+    <button class="btn sec" id="b-trocar-painel" style="display:none; width:auto; padding:8px 14px; font-size:12px; letter-spacing:.08em">TROCAR</button>
+    <button class="btn sec" id="b-sair-admin" style="width:auto; padding:8px 14px; font-size:12px; letter-spacing:.08em">SAIR</button>
+  </div>
+</header>
+
+<nav>
+  <button class="on" data-aba="consumidores">Sócios</button>
+  <button data-aba="push">Push</button>
+  <button data-aba="config">Configuração</button>
+  <button data-aba="bares">Bares</button>
+  <button data-aba="garcons">Garçons</button>
+  <button data-aba="gestores">Gestores</button>
+  <button data-aba="admins">Admins</button>
+  <button data-aba="colabs">Colabs</button>
+  <button data-aba="arvores">Árvores</button>
+  <button data-aba="mensagens">Mensagens</button>
+  <button data-aba="reembolsos">Reembolsos</button>
+</nav>
+
+<main>
+
+<!-- ══ SÓCIOS ══ -->
+<section class="aba on" id="aba-consumidores">
+  <h2>Sócios</h2>
+  <div class="linha">
+    <div style="max-width:280px">
+      <label>BUSCAR SÓCIO</label>
+      <input id="soc-busca" type="text" placeholder="nome…">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-recarregar">Recarregar</button>
+    </div>
+  </div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>NOME</th><th>TELEFONE</th><th></th>
+        <th><span class="f-col-soc" data-campo="bar"></span></th>
+        <th class="num">PONTOS</th><th class="num">PONTOS TOTAIS</th><th class="num">META</th>
+        <th class="num">INDICADOS</th>
+        <th><span class="f-col-soc" data-campo="padrinho"></span></th>
+        <th><span class="f-col-soc" data-campo="premio"></span></th>
+        <th><span class="f-col-soc" data-campo="visitas"></span></th>
+        <th>ADESÃO</th>
+        <th></th>
+      </tr></thead>
+      <tbody id="t-consumidores"><tr><td colspan="13" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mini" id="resumo"></div>
+</section>
+
+<!-- ══ PUSH ══ -->
+<section class="aba" id="aba-push">
+  <h2>Push manual</h2>
+  <p class="sub">Envia uma notificação para o cartão de um sócio. Só chega para quem instalou o cartão na Wallet.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div>
+        <label>TELEFONE DO SÓCIO</label>
+        <input id="p-tel" type="tel" placeholder="5521999998888">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>TEXTO DO PUSH</label>
+      <textarea id="p-texto" rows="3" placeholder="Ex.: Hoje tem jogo do Flamengo no Backbone Partage!"></textarea>
+    </div>
+    <button class="btn" id="b-push">Enviar push</button>
+    <div class="msg" id="m-push"></div>
+  </div>
+  <p class="mini">O texto substitui o campo "Último aviso" do verso do cartão e dispara a notificação. Textos repetidos não geram novo push — mude o texto para notificar de novo.</p>
+
+  <h2 style="margin-top:30px">Push em massa</h2>
+  <p class="sub">Filtre os sócios como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
+  <div class="cartao">
+    <div style="overflow-x:auto">
+      <table id="pm-tabela">
+        <thead><tr>
+          <th style="width:34px"><input type="checkbox" id="pm-todos" checked></th>
+          <th>NOME</th><th>TELEFONE</th>
+          <th><span class="f-col" data-campo="bar"></span></th>
+          <th class="num"><span class="f-col" data-campo="mes"></span></th>
+          <th class="num"><span class="f-col" data-campo="dia"></span></th>
+          <th><span class="f-col" data-campo="time"></span></th>
+          <th><span class="f-col" data-campo="pend"></span></th>
+          <th class="num"><span class="f-col" data-campo="resg"></span></th>
+          <th class="num"><span class="f-col" data-campo="visitas"></span></th>
+          <th><span class="f-col" data-campo="cep"></span></th>
+        </tr></thead>
+        <tbody id="pm-corpo"><tr><td colspan="11" class="carregando">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="msg" id="pm-contador" style="color:var(--ambar)"></div>
+    <div style="margin:12px 0">
+      <label>TEXTO DO PUSH</label>
+      <textarea id="pm-texto" rows="3" placeholder="Ex.: Hoje tem jogo no Backbone Partage!"></textarea>
+    </div>
+    <button class="btn" id="pm-enviar">Enviar</button>
+    <div class="msg" id="pm-resultado"></div>
+  </div>
+</section>
+
+<!-- ══ CONFIG ══ -->
+<section class="aba" id="aba-config">
+  <h2>Configuração do clube</h2>
+  <p class="sub">Estes valores são congelados no cadastro e no resgate. Quem está no meio da cartela não é afetado.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div>
+        <label>META (CHOPPS PARA O PRÊMIO)</label>
+        <input id="c-meta" type="number" min="1" max="30">
+      </div>
+      <div>
+        <label>TEMPORADA VIGENTE</label>
+        <input id="c-temporada" type="text" placeholder="ex.: padrao, mantiqueira, verao">
+      </div>
+    </div>
+    <button class="btn" id="b-config">Salvar configuração</button>
+    <div class="msg" id="m-config"></div>
+  </div>
+  <p class="mini">A temporada vigente define a pasta de artes da strip (server/strips/&lt;temporada&gt;/) para novos ciclos.</p>
+
+  <h2 style="margin-top:30px">Telefones bloqueados</h2>
+  <p class="sub">Números que não podem se associar (funcionários, listas passadas pelos donos dos bares). O cadastro é recusado sem revelar o motivo.</p>
+  <div class="cartao">
+    <div class="linha">
+      <div style="max-width:280px">
+        <label>BAR DO BLOQUEIO</label>
+        <select id="bl-bar"><option value="*">Todos os bares</option></select>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label>ADICIONAR NÚMEROS — um por linha, ou separados por vírgula</label>
+      <textarea id="bl-lista" rows="4" placeholder="5521999998888&#10;5521977776666"></textarea>
+    </div>
+    <button class="btn" id="bl-adicionar">Bloquear números</button>
+    <div class="msg" id="bl-msg"></div>
+    <div style="margin-top:16px">
+      <label>BLOQUEADOS ATUAIS (<span id="bl-total">0</span>)</label>
+      <div id="bl-atual" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ BARES ══ -->
+<section class="aba" id="aba-bares">
+  <h2>Bares</h2>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="b-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="max-width:260px">
+      <label>FILTRAR POR BAR</label>
+      <select id="b-filtro"><option value="">Todos os bares</option></select>
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-atualizar">Atualizar</button>
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = cadastros do bar · Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = chopps de cartela cheia entregues.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>NOME</th><th>CIDADE</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th></th></tr></thead>
+      <tbody id="t-bares"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="bar-form-titulo">Novo bar</h2>
+    <div class="linha">
+      <div>
+        <label>ID (CÓDIGO)</label>
+        <input id="b-id" type="text" placeholder="Backbone_Partage">
+      </div>
+      <div>
+        <label>NOME DE EXIBIÇÃO</label>
+        <input id="b-nome" type="text" placeholder="Backbone Partage">
+      </div>
+      <div>
+        <label>CIDADE</label>
+        <input id="b-cidade" type="text" placeholder="Rio de Janeiro">
+      </div>
+    </div>
+    <div class="mini" style="margin:-4px 0 14px">ID sem espaços nem acentos. Ex.: Backbone_Partage</div>
+    <label for="b-pratos" style="display:flex; align-items:flex-start; gap:12px; background:#10203F; border:1px solid #2F62E6; border-radius:10px; padding:12px; cursor:pointer; margin:0 0 14px; text-transform:none; letter-spacing:0; font-size:14px">
+      <input id="b-pratos" type="checkbox" style="width:22px; height:22px; margin:2px 0 0; accent-color:#2F62E6; flex-shrink:0">
+      <span style="display:flex; flex-direction:column; gap:3px">
+        <span style="font-size:15px; font-weight:800; color:#FFF">Aceita pratos</span>
+        <span style="font-size:13px; color:#CFE0FF; line-height:1.4; font-weight:400">Liga o botão "Escanear prato" para os garçons deste bar. Os colabs deste bar ganham 1 prato executivo a cada 10 pratos dos indicados.</span>
+      </span>
+    </label>
+    <button class="btn" id="b-criar-bar">Criar bar</button>
+    <button class="btn sec" id="b-cancelar-bar" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <div class="msg" id="m-bar"></div>
+  </div>
+  <p class="mini">⚠️ O ID deve ser idêntico ao usado no campo "Indicador" do BotConversa e no bar_id dos garçons. Maiúsculas contam.</p>
+</section>
+
+<!-- ══ GARÇONS ══ -->
+<section class="aba" id="aba-garcons">
+  <h2>Garçons</h2>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="g-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-stats">Atualizar</button>
+    </div>
+    <div style="max-width:220px">
+      <label>FILTRAR POR BAR</label>
+      <select id="g-filtro-bar"><option value="">Todos os bares</option></select>
+    </div>
+    <div style="max-width:240px">
+      <label>BUSCAR GARÇOM</label>
+      <input id="g-busca" type="text" placeholder="nome…">
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-garcons"><tr><td colspan="4" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="garcom-form-titulo">Novo garçom</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN (ex.: g01)</label>
+        <input id="g-id" type="text" placeholder="g01">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="g-nome" type="text" placeholder="João">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="g-senha" type="text" placeholder="senha do garçom">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="g-tel" type="tel" placeholder="5521999998888">
+      </div>
+      <div>
+        <label>BAR</label>
+        <select id="g-bar"></select>
+      </div>
+    </div>
+    <button class="btn" id="b-criar-garcom">Criar garçom</button>
+    <button class="btn sec" id="b-cancelar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
+    <div class="msg" id="m-garcom"></div>
+  </div>
+</section>
+
+<!-- ══ GESTORES ══ -->
+<section class="aba" id="aba-gestores">
+  <h2>Gestores</h2>
+  <p class="sub">Usuários do painel do dono/gerente do bar (Histórico, Atual, Atividade, Garçons). Um gestor pode administrar mais de um bar.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BARES</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-gestores"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="gestor-form-titulo">Novo gestor</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN (ex.: gestor01)</label>
+        <input id="gt-id" type="text" placeholder="gestor01">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="gt-nome" type="text" placeholder="João Carlos">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="gt-senha" type="text" placeholder="senha do gestor">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="gt-tel" type="tel" placeholder="5521999998888">
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label>BARES QUE ESTE GESTOR ADMINISTRA</label>
+      <div class="f-drop" style="display:block">
+        <button type="button" id="gt-bares-btn" style="width:100%; text-align:left; background:var(--campo); color:#111; border:2px solid var(--campo); border-radius:10px; padding:12px; font-size:16px; font-weight:600; font-family:inherit; cursor:pointer">Selecionar bares ▾</button>
+        <div class="f-painel" id="gt-bares-painel" style="width:100%; max-width:none; box-sizing:border-box"></div>
+      </div>
+    </div>
+    <button class="btn" id="b-criar-gestor">Criar gestor</button>
+    <button class="btn sec" id="b-cancelar-gestor" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-gestor" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
+    <div class="msg" id="m-gestor"></div>
+  </div>
+  <p class="mini">Se o gestor tiver só 1 bar marcado, o painel dele pula direto pro dashboard. Com mais de 1, ele vê uma tela de seleção antes.</p>
+</section>
+
+<!-- ══ ADMINS ══ -->
+<section class="aba" id="aba-admins">
+  <h2>Admins</h2>
+  <p class="sub">Acesso total: abre o admin.html e o gestor.html como gestor master (vê "Todos os bares"). Use com moderação.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>NOME</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-admins"><tr><td colspan="3" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="admin-form-titulo">Novo admin</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN</label>
+        <input id="ad-id" type="text" placeholder="henrique">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="ad-nome" type="text" placeholder="Henrique">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="ad-senha" type="text" placeholder="senha do admin">
+      </div>
+    </div>
+    <button class="btn" id="b-criar-admin">Criar admin</button>
+    <button class="btn sec" id="b-cancelar-admin" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-admin" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
+    <div class="msg" id="m-admin"></div>
+  </div>
+</section>
+
+<!-- ══ COLABS ══ -->
+<section class="aba" id="aba-colabs">
+  <h2>Colabs</h2>
+  <p class="sub">Parceiros externos (estabelecimentos ao redor dos bares) que cadastram clientes pelo QR próprio. O cadastro só "completa" quando o cliente é escaneado de verdade no bar.</p>
+  <div class="linha">
+    <div style="max-width:200px">
+      <label>JANELA (DIAS)</label>
+      <input id="al-dias" type="number" min="1" max="365" value="30">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-colabs-atualizar">Atualizar</button>
+    </div>
+  </div>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">PRATOS</th><th>STATUS</th><th></th></tr></thead>
+      <tbody id="t-colabs"><tr><td colspan="8" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="cartao">
+    <h2 style="font-size:16px" id="colab-form-titulo">Novo colab</h2>
+    <div class="linha">
+      <div>
+        <label>ID DE LOGIN</label>
+        <input id="al-id" type="text" placeholder="cafedaesquina">
+      </div>
+      <div>
+        <label>NOME</label>
+        <input id="al-nome" type="text" placeholder="Café da Esquina">
+      </div>
+      <div>
+        <label>SENHA</label>
+        <input id="al-senha" type="text" placeholder="senha do colab">
+      </div>
+      <div>
+        <label>TELEFONE</label>
+        <input id="al-tel" type="tel" placeholder="5521999998888">
+      </div>
+      <div>
+        <label>BAR (recebe os cadastros)</label>
+        <select id="al-bar"></select>
+      </div>
+    </div>
+    <button class="btn" id="b-criar-colab">Criar colab</button>
+    <button class="btn sec" id="b-cancelar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
+    <button class="btn sec" id="b-alternar-colab" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
+    <div class="msg" id="m-colab"></div>
+  </div>
+</section>
+
+<!-- ══ ÁRVORES ══ -->
+<section class="aba" id="aba-arvores">
+  <h2>Árvores</h2>
+  <p class="sub">Sócios que cruzaram um múltiplo de 100 chopps (vitalício) e ainda esperam a muda ser plantada na Serra da Mantiqueira. Marcar aqui não envia push — o aviso de "foi plantada" é feito por você, manualmente.</p>
+  <div class="linha">
+    <div style="flex:0">
+      <button class="btn sec" id="b-arvores-recarregar">Recarregar</button>
+    </div>
+  </div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>SÓCIO</th><th>TELEFONE</th><th class="num">MARCO</th><th>DETECTADO EM</th><th></th>
+      </tr></thead>
+      <tbody id="t-arvores"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mini" id="arvores-resumo"></div>
+</section>
+
+<!-- ══ MENSAGENS ══ -->
+<section class="aba" id="aba-mensagens">
+  <h2>Mensagens</h2>
+  <p class="sub">Pedidos de resgate e dúvidas enviados pelos sócios na página de perfil deles. Marque como lida quando já tiver tomado providência.</p>
+  <div class="linha">
+    <div style="max-width:280px">
+      <label>FILTRAR POR TELEFONE</label>
+      <input id="msg-filtro-tel" type="text" placeholder="deixe em branco pra ver todas">
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-msg-limpar-filtro">Limpar filtro</button>
+    </div>
+    <div style="flex:0">
+      <button class="btn sec" id="b-msg-recarregar">Recarregar</button>
+    </div>
+  </div>
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>SÓCIO</th><th>TELEFONE</th><th>MENSAGEM</th><th>DATA</th><th>STATUS</th><th></th>
+      </tr></thead>
+      <tbody id="t-mensagens"><tr><td colspan="6" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="mini" id="mensagens-resumo"></div>
+</section>
+
+<!-- ══ REEMBOLSOS ══ -->
+<section class="aba" id="aba-reembolsos">
+  <h2>Reembolso de chopps aos bares</h2>
+  <p class="sub">Cada chopp grátis (boas-vindas ou resgate de cartela) é pago pela Backbone. O bar é reembolsado em desconto nas próximas compras de barris. Entrada = chopps grátis dados pelo bar (somados por mês, automático). Saída = desconto que você lançou.</p>
+
+  <div class="linha" style="align-items:stretch">
+    <div class="cartao" style="margin-bottom:14px">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">CHOPPS DISTRIBUÍDOS (TODOS OS BARES)</div>
+      <div id="rb-total-dist" style="font-size:34px; font-weight:800; margin-top:4px">—</div>
+    </div>
+    <div class="cartao" style="margin-bottom:14px">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">CHOPPS JÁ REEMBOLSADOS</div>
+      <div id="rb-total-reemb" style="font-size:34px; font-weight:800; margin-top:4px; color:#5FD08A">—</div>
+    </div>
+    <div class="cartao" style="margin-bottom:14px; border-color:var(--ambar)">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700">SALDO PENDENTE (A DESCONTAR)</div>
+      <div id="rb-total-saldo" style="font-size:34px; font-weight:800; margin-top:4px; color:var(--ambar)">—</div>
+    </div>
+  </div>
+
+  <div class="linha">
+    <div style="flex:0">
+      <button class="btn sec" id="b-reemb-recarregar">Recarregar</button>
+    </div>
+  </div>
+
+  <div class="cartao" style="padding:0; overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>BAR</th><th class="num">DISTRIBUÍDOS</th><th class="num">REEMBOLSADOS</th><th class="num">SALDO PENDENTE</th><th></th>
+      </tr></thead>
+      <tbody id="t-reembolsos"><tr><td colspan="5" class="carregando">Carregando…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="rb-ficha" style="display:none; margin-top:26px">
+    <h2 id="rb-ficha-titulo">Ficha</h2>
+    <p class="sub" id="rb-ficha-sub"></p>
+
+    <div class="cartao" style="padding:0; overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>DATA</th><th>DESCRIÇÃO</th><th class="num">ENTRADA</th><th class="num">SAÍDA</th><th class="num">SALDO</th><th></th>
+        </tr></thead>
+        <tbody id="t-rb-ficha"></tbody>
+      </table>
+    </div>
+
+    <div class="cartao">
+      <div class="mini" style="letter-spacing:.1em; font-weight:700; margin-bottom:12px">LANÇAR DESCONTO CONCEDIDO</div>
+      <div class="linha">
+        <div>
+          <label for="rb-data">DATA DO DESCONTO</label>
+          <input id="rb-data" type="date">
+        </div>
+        <div>
+          <label for="rb-qtd">QUANTIDADE DE CHOPPS</label>
+          <input id="rb-qtd" type="number" min="1" step="1" inputmode="numeric">
+        </div>
+        <div>
+          <label for="rb-ref">REFERÊNCIA (NF / PEDIDO)</label>
+          <input id="rb-ref" type="text" placeholder="Ex.: Pedido 5230">
+        </div>
+        <div style="flex:0">
+          <button class="btn" id="b-rb-lancar" style="background:var(--ambar); color:#151000; white-space:nowrap">Lançar como saída</button>
+        </div>
+      </div>
+      <div class="msg" id="rb-msg"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+const API = "https://backbone-650557630362.us-central1.run.app";
+const $ = id => document.getElementById(id);
+
+/* ── acesso: exige login de admin ── */
+(function(){
+  const salvo = localStorage.getItem("bb_admin");
+  if(!salvo){ location.href = "login.html"; return; }
+  $("b-trocar-painel").style.display = "inline-block";
+})();
+$("b-trocar-painel").onclick = () => { location.href = "escolha.html"; };
+$("b-sair-admin").onclick = () => {
+  localStorage.removeItem("bb_admin");
+  localStorage.removeItem("bb_gestor");
+  location.href = "login.html";
+};
+
+/* ── navegação ── */
+document.querySelectorAll("nav button").forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll("nav button").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".aba").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    $("aba-" + b.dataset.aba).classList.add("on");
+  };
+});
+
+function irParaAba(nomeAba){
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".aba").forEach(x => x.classList.remove("on"));
+  const botao = document.querySelector('nav button[data-aba="' + nomeAba + '"]');
+  if(botao) botao.classList.add("on");
+  $("aba-" + nomeAba).classList.add("on");
+}
+
+/* ── sócios ── */
+let consumidoresLista = [];
+let socFiltros = {}; // campo -> Set de valores aceitos (ausente = todos)
+
+const SOC_CAMPOS = [
+  {id:"bar", rotulo:"Bar", extrai: c => c.indicador || "—"},
+  {id:"padrinho", rotulo:"Padrinho", extrai: c => c.padrinho ? "com padrinho" : "sem padrinho"},
+  {id:"premio", rotulo:"Prêmio", extrai: c => (c.recompensas_disponiveis > 0) ? "pendente" : "—"},
+  {id:"visitas", rotulo:"Visitas", extrai: c => {
+      const v = c.dias_visitados || 0;
+      return v === 0 ? "0" : (v <= 2 ? "1-2" : (v <= 5 ? "3-5" : "6+"));
+  }},
+];
+
+async function carregarConsumidores(){
+  const tb = $("t-consumidores");
+  tb.innerHTML = '<tr><td colspan="13" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/consumidores");
+    consumidoresLista = await r.json();
+    montarFiltrosSoc();
+    renderConsumidores();
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="13" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+  }
+}
+
+function socFiltrados(){
+  const busca = ($("soc-busca").value || "").trim().toLowerCase();
+  return consumidoresLista.filter(c => SOC_CAMPOS.every(f => {
+    const s = socFiltros[f.id];
+    return !s || s.has(f.extrai(c));
+  }) && (!busca || (c.nome || "").toLowerCase().includes(busca)));
+}
+
+function montarFiltrosSoc(){
+  SOC_CAMPOS.forEach(f => {
+    const alvo = document.querySelector('.f-col-soc[data-campo="' + f.id + '"]');
+    if(!alvo) return;
+    alvo.innerHTML = "";
+    const valores = [...new Set(consumidoresLista.map(f.extrai))].sort();
+    const drop = document.createElement("div");
+    drop.className = "f-drop";
+    const sel = socFiltros[f.id];
+    const btn = document.createElement("button");
+    btn.className = "f-btn f-col-btn" + (sel ? " ativo" : "");
+    btn.textContent = f.rotulo.toUpperCase() + (sel ? " (" + sel.size + ") ▾" : " ▾");
+    const painel = document.createElement("div");
+    painel.className = "f-painel";
+    const tn = document.createElement("div");
+    tn.className = "tn";
+    tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+    painel.appendChild(tn);
+    valores.forEach(v => {
+      const lb = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !sel || sel.has(v);
+      cb.onchange = () => {
+        const marcados = [...painel.querySelectorAll("label input")].filter(x => x.checked)
+          .map(x => x.dataset.v);
+        socFiltros[f.id] = marcados.length === valores.length ? null : new Set(marcados);
+        if(!socFiltros[f.id]) delete socFiltros[f.id];
+        renderConsumidores(); montarFiltrosSoc();
+        painel.classList.add("on");
+      };
+      cb.dataset.v = v;
+      lb.appendChild(cb);
+      lb.appendChild(document.createTextNode(v));
+      painel.appendChild(lb);
+    });
+    tn.onclick = ev => {
+      const a = ev.target.dataset.a;
+      if(!a) return;
+      if(a === "todos"){ delete socFiltros[f.id]; }
+      else { socFiltros[f.id] = new Set(); }
+      renderConsumidores(); montarFiltrosSoc();
+    };
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
+      painel.classList.toggle("on");
+    };
+    if(f.id === "padrinho" || f.id === "premio") painel.style.cssText += "left:auto; right:0";
+    drop.appendChild(btn); drop.appendChild(painel);
+    alvo.appendChild(drop);
+  });
+}
+
+function celAlertaMensagem(telefone){
+  return telefonesComMensagemNaoLida.has(telefone)
+    ? `<button class="pill-msg" onclick="abrirMensagensDoSocio('${telefone}')">msg</button>`
+    : "";
+}
+
+function renderConsumidores(){
+  const tb = $("t-consumidores");
+  const lista = socFiltrados();
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="13" class="carregando">Nenhum sócio encontrado.</td></tr>';
+    $("resumo").textContent = "";
+    return;
+  }
+  lista.sort((a,b) => (b.cadastro_em || "").localeCompare(a.cadastro_em || ""));
+  tb.innerHTML = lista.map(c => {
+    const premio = c.recompensas_disponiveis > 0
+      ? '<span class="pill atencao">Pendente</span>'
+      : '<span class="pill neutro">—</span>';
+    const adesao = c.cadastro_em ? new Date(c.cadastro_em).toLocaleDateString("pt-BR") : "—";
+    return `<tr>
+      <td><strong>${c.nome || "—"}</strong></td>
+      <td>${c.telefone}</td>
+      <td>${celAlertaMensagem(c.telefone)}</td>
+      <td>${c.indicador || "—"}</td>
+      <td class="num">${c.punches ?? 0}</td>
+      <td class="num">${c.chopps_totais ?? 0}</td>
+      <td class="num">${c.meta ?? "—"}</td>
+      <td class="num">${c.total_indicados ?? 0}</td>
+      <td>${c.padrinho || "—"}</td>
+      <td>${premio}</td>
+      <td class="num">${c.dias_visitados ?? 0}</td>
+      <td>${adesao}</td>
+      <td><button class="btn-x" onclick="apagarConsumidor('${c.telefone}', '${(c.nome || "").replace(/'/g, "")}')">apagar</button></td>
+    </tr>`;
+  }).join("");
+  const totIndicados = lista.filter(c => c.padrinho).length;
+  $("resumo").textContent = lista.length + " sócios (de " + consumidoresLista.length + " no total) · " +
+    totIndicados + " vieram por indicação";
+}
+$("b-recarregar").onclick = carregarConsumidores;
+$("soc-busca").oninput = renderConsumidores;
+
+/* ── push ── */
+$("b-push").onclick = async () => {
+  const tel = ($("p-tel").value || "").replace(/\D/g, "");
+  const texto = $("p-texto").value.trim();
+  const m = $("m-push");
+  if(!tel || !texto){ m.className = "msg erro"; m.textContent = "Preencha o telefone e o texto."; return; }
+  m.className = "msg"; m.textContent = "Enviando…";
+  try{
+    const r = await fetch(API + "/admin/push/" + tel, {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({texto})
+    });
+    const d = await r.json();
+    if(!r.ok){ m.className = "msg erro"; m.textContent = d.erro || "Falhou."; return; }
+    m.className = "msg ok";
+    m.textContent = d.enviados > 0
+      ? "Push enviado para " + d.enviados + " dispositivo(s)."
+      : "Aviso gravado, mas nenhum dispositivo registrado — o sócio ainda não instalou o cartão.";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Sem conexão."; }
+};
+
+/* ── config ── */
+async function carregarConfig(){
+  try{
+    const r = await fetch(API + "/admin/config");
+    const c = await r.json();
+    $("c-meta").value = c.punches_para_recompensa ?? 10;
+    $("c-temporada").value = c.temporada_vigente ?? "padrao";
+  }catch(e){}
+}
+$("b-config").onclick = async () => {
+  const m = $("m-config");
+  const corpo = {
+    punches_para_recompensa: parseInt($("c-meta").value || "10", 10),
+    temporada_vigente: ($("c-temporada").value || "padrao").trim()
+  };
+  m.className = "msg"; m.textContent = "Salvando…";
+  try{
+    const r = await fetch(API + "/admin/config", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Configuração salva. Vale para novos cadastros e novos ciclos.";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+
+/* ── bares ── */
+let baresLista = [], baresStats = {};
+
+async function carregarBares(){
+  const dias = parseInt($("b-dias")?.value || "30", 10);
+  try{
+    const [rb, rs] = await Promise.all([
+      fetch(API + "/admin/bares"),
+      fetch(API + "/admin/bares/stats?dias=" + dias)
+    ]);
+    baresLista = await rb.json();
+    baresStats = (await rs.json()).bares || {};
+
+    // popular selects (garcom, filtro de bares)
+    const ops = baresLista.map(b => `<option value="${b.id}">${b.nome || b.id}</option>`).join("");
+    $("g-bar").innerHTML = ops;
+    $("al-bar").innerHTML = ops;
+    const filtroAtual = $("b-filtro").value;
+    $("b-filtro").innerHTML = '<option value="">Todos os bares</option>' + ops;
+    $("b-filtro").value = filtroAtual;
+    const blAtual = $("bl-bar").value;
+    $("bl-bar").innerHTML = '<option value="*">Todos os bares</option>' + ops;
+    if(blAtual) $("bl-bar").value = blAtual;
+
+    const gFiltroAtual = $("g-filtro-bar").value;
+    $("g-filtro-bar").innerHTML = '<option value="">Todos os bares</option>' + ops;
+    if(gFiltroAtual) $("g-filtro-bar").value = gFiltroAtual;
+
+    $("gt-bares-btn").disabled = !baresLista.length;
+    montarDropdownBaresGestor();
+
+    renderBares();
+  }catch(e){
+    $("t-bares").innerHTML = '<tr><td colspan="7" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+function renderBares(){
+  const filtro = $("b-filtro").value;
+  const lista = filtro ? baresLista.filter(b => b.id === filtro) : baresLista;
+  const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
+
+  if(!lista.length){
+    $("t-bares").innerHTML = '<tr><td colspan="7" class="carregando">Nenhum bar cadastrado.</td></tr>';
+    return;
+  }
+
+  const tot = {aj:0, at:0, cj:0, ct:0, bj:0, bt:0, mj:0, mt:0};
+  const linhas = lista.map(b => {
+    const s = baresStats[b.id];
+    if(s){
+      tot.aj += s.associados_janela; tot.at += s.associados_total;
+      tot.cj += s.consumos_janela;   tot.ct += s.consumos_total;
+      tot.bj += s.boasvindas_janela; tot.bt += s.boasvindas_total;
+      tot.mj += s.metas_janela;      tot.mt += s.metas_total;
+    }
+    return `<tr>
+      <td><strong>${b.nome || "—"}</strong>${b.pratos ? ' <span style="font-size:10px;font-weight:800;color:#7FA3FF;letter-spacing:.06em;vertical-align:middle">PRATOS</span>' : ""}</td><td>${b.cidade || "—"}</td>
+      ${cel(s,"associados")}${cel(s,"boasvindas")}${cel(s,"consumos")}${cel(s,"metas")}
+      <td style="white-space:nowrap; text-align:right">
+        <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrBar('${b.id}')">QR/link</button>
+        <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayBar('${b.id}', this)">Display</button>
+        <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarBar("${b.id}")'>editar</button>
+        <button class="btn-x btn-x-sm" onclick="apagarBar('${b.id}')">apagar</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const totalRow = `<tr style="border-top:2px solid #3A3A3A">
+    <td colspan="2" style="font-weight:800; color:var(--ambar)">TOTAL</td>
+    <td class="num" style="font-weight:800">${tot.aj} / ${tot.at}</td>
+    <td class="num" style="font-weight:800">${tot.bj} / ${tot.bt}</td>
+    <td class="num" style="font-weight:800">${tot.cj} / ${tot.ct}</td>
+    <td class="num" style="font-weight:800">${tot.mj} / ${tot.mt}</td>
+    <td></td>
+  </tr>`;
+
+  $("t-bares").innerHTML = linhas + totalRow;
+}
+let editandoBarId = null;
+let editandoBarOriginal = null;
+
+function editarBar(id){
+  const b = baresLista.find(x => x.id === id);
+  if(!b) return;
+  editandoBarId = id;
+  editandoBarOriginal = b;
+  $("b-id").value = b.id; $("b-id").disabled = true;
+  $("b-nome").value = b.nome || "";
+  $("b-cidade").value = b.cidade || "";
+  $("b-pratos").checked = !!b.pratos;
+  $("bar-form-titulo").textContent = "Editar bar — " + b.id;
+  $("b-criar-bar").textContent = "Salvar alterações";
+  $("b-cancelar-bar").style.display = "inline-block";
+  $("aba-bares").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoBar(){
+  editandoBarId = null; editandoBarOriginal = null;
+  $("b-id").value = ""; $("b-id").disabled = false;
+  $("b-nome").value = ""; $("b-cidade").value = ""; $("b-pratos").checked = false;
+  $("bar-form-titulo").textContent = "Novo bar";
+  $("b-criar-bar").textContent = "Criar bar";
+  $("b-cancelar-bar").style.display = "none";
+  $("m-bar").textContent = "";
+}
+$("b-cancelar-bar").onclick = cancelarEdicaoBar;
+
+$("b-criar-bar").onclick = async () => {
+  const m = $("m-bar");
+  const id = ($("b-id").value || "").trim();
+  const nome = ($("b-nome").value || "").trim();
+  const cidade = ($("b-cidade").value || "").trim();
+  const pratos = $("b-pratos").checked;
+  if(!id || !nome){ m.className = "msg erro"; m.textContent = "Preencha o ID e o nome."; return; }
+  if(/[\s]/.test(id)){ m.className = "msg erro"; m.textContent = "O ID não pode ter espaços."; return; }
+  m.className = "msg"; m.textContent = editandoBarId ? "Salvando…" : "Criando…";
+  const criado_em = editandoBarOriginal?.criado_em || new Date().toISOString();
+  try{
+    const r = await fetch(API + "/admin/bares", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, nome, cidade, criado_em, pratos})
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoBarId ? "Bar atualizado." : "Bar criado.";
+    cancelarEdicaoBar();
+    carregarBares();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+
+/* ── garçons ── */
+let garconsLista = [];
+let garconsStats = {};
+let gestoresParaGarcons = [];
+let adminsParaGarcons = [];
+
+async function carregarGarcons(){
+  const dias = parseInt($("g-dias")?.value || "30", 10);
+  try{
+    const [rg, rs, rt, ra] = await Promise.all([
+      fetch(API + "/admin/garcons"),
+      fetch(API + "/admin/garcons/stats?dias=" + dias),
+      fetch(API + "/admin/gestores"),
+      fetch(API + "/admin/admins"),
+    ]);
+    garconsLista = await rg.json();
+    garconsStats = (await rs.json()).garcons || {};
+    gestoresParaGarcons = await rt.json();
+    adminsParaGarcons = await ra.json();
+    renderGarcons();
+  }catch(e){
+    $("t-garcons").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+function renderGarcons(){
+  const barFiltro = $("g-filtro-bar").value;
+  const busca = ($("g-busca").value || "").trim().toLowerCase();
+
+  // gestores/admins que escanearam aparecem nas estatisticas (o backend
+  // nao filtra por "e garcom de verdade"), mas nao estao em garconsLista —
+  // sem isso, o total de socios "some" entre a aba Socios e esta aba.
+  // So entram aqui quando NENHUM filtro de bar esta ativo, porque a
+  // atividade de gestor/admin nao fica presa a um unico bar.
+  const idsGarcons = new Set(garconsLista.map(g => g.id));
+  const extras = !barFiltro ? Object.keys(garconsStats)
+    .filter(id => !idsGarcons.has(id))
+    .map(id => {
+      const gestor = gestoresParaGarcons.find(x => x.id === id);
+      const admin = gestor ? null : adminsParaGarcons.find(x => x.id === id);
+      const quem = gestor || admin;
+      if(!quem) return null; // scan de origem desconhecida — nao inventa linha
+      return {
+        id, nome: quem.nome || id, telefone: quem.telefone || "",
+        tipo: gestor ? "Gestor" : "Admin", ativo: true,
+      };
+    })
+    .filter(Boolean) : [];
+
+  const lista = [...garconsLista, ...extras].filter(g =>
+    (!barFiltro || g.bar_id === barFiltro) &&
+    (!busca || (g.nome || "").toLowerCase().includes(busca))
+  );
+  const cel = (s, cat) => {
+    if(!s) return '<td class="num">0 / 0</td>';
+    return `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>`;
+  };
+  $("t-garcons").innerHTML = lista.length
+    ? lista.map(g => {
+        const s = garconsStats[g.id];
+        const barCel = g.tipo ? `<span class="pill atencao">${g.tipo}</span>` : (g.bar_id || "—");
+        const statusCel = g.tipo
+          ? '<span class="pill neutro">—</span>'
+          : (g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>');
+        const acoesCel = g.tipo
+          ? `<span class="mini">gerencie na aba ${g.tipo === "Admin" ? "Admins" : "Gestores"}</span>`
+          : `<button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGarcom("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGarcom('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button>`;
+        return `<tr>
+        <td><strong>${g.nome || "—"}</strong></td><td>${g.telefone || "—"}</td><td>${barCel}</td>
+        ${cel(s,"cadastros")}${cel(s,"consumos")}${cel(s,"resgates")}
+        <td>${statusCel}</td>
+        <td>${acoesCel}</td>
+      </tr>`;}).join("")
+    : '<tr><td colspan="8" class="carregando">Nenhum garçom encontrado.</td></tr>';
+}
+$("g-filtro-bar").onchange = renderGarcons;
+$("g-busca").oninput = renderGarcons;
+
+let editandoGarcomId = null;
+function editarGarcom(id){
+  const g = garconsLista.find(x => x.id === id);
+  if(!g) return;
+  editandoGarcomId = id;
+  $("g-id").value = g.id; $("g-id").disabled = true;
+  $("g-nome").value = g.nome || "";
+  $("g-senha").value = "";
+  $("g-senha").placeholder = "deixe em branco para manter a atual";
+  $("g-tel").value = g.telefone || "";
+  $("g-bar").value = g.bar_id || "";
+  $("garcom-form-titulo").textContent = "Editar garçom — " + g.id;
+  $("b-criar-garcom").textContent = "Salvar alterações";
+  $("b-cancelar-garcom").style.display = "inline-block";
+  $("b-alternar-garcom").style.display = "inline-block";
+  $("b-alternar-garcom").textContent = (g.ativo === false) ? "Ativar garçom" : "Desativar garçom";
+  $("aba-garcons").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoGarcom(){
+  editandoGarcomId = null;
+  $("g-id").value = ""; $("g-id").disabled = false;
+  $("g-nome").value = ""; $("g-senha").value = ""; $("g-senha").placeholder = "senha do garçom"; $("g-tel").value = "";
+  $("garcom-form-titulo").textContent = "Novo garçom";
+  $("b-criar-garcom").textContent = "Criar garçom";
+  $("b-cancelar-garcom").style.display = "none";
+  $("b-alternar-garcom").style.display = "none";
+  $("m-garcom").textContent = "";
+}
+$("b-cancelar-garcom").onclick = cancelarEdicaoGarcom;
+
+$("b-alternar-garcom").onclick = async () => {
+  const g = garconsLista.find(x => x.id === editandoGarcomId);
+  if(!g) return;
+  const novoAtivo = g.ativo === false;
+  const btn = $("b-alternar-garcom");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: g.id, nome: g.nome, bar_id: g.bar_id, bar_nome: g.bar_nome, telefone: g.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/garcons", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoGarcom();
+    carregarGarcons();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
+
+$("b-criar-garcom").onclick = async () => {
+  const m = $("m-garcom");
+  const id = ($("g-id").value || "").trim();
+  const nome = ($("g-nome").value || "").trim();
+  const senha = $("g-senha").value;
+  const bar_id = $("g-bar").value;
+  if(!id || !nome || !bar_id || (!editandoGarcomId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha todos os campos."; return;
+  }
+  m.className = "msg"; m.textContent = editandoGarcomId ? "Salvando…" : "Criando…";
+  try{
+    const barNome = $("g-bar").selectedOptions[0]?.textContent || bar_id;
+    const corpo = {id, nome, bar_id, bar_nome: barNome, telefone: ($("g-tel").value||"").replace(/\D/g,""), ativo: true};
+    if(senha) corpo.senha = senha; // em branco na edicao = mantem a senha atual (backend preserva)
+    const r = await fetch(API + "/admin/garcons", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um sócio.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoGarcomId ? "Garçom atualizado." : "Garçom criado. Login: " + id;
+    cancelarEdicaoGarcom();
+    carregarGarcons();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+
+
+/* ── dropdown de bares (gestor) — mesmo padrão do Push em massa ── */
+let gtBaresSelecionados = new Set();
+
+function montarDropdownBaresGestor(){
+  const painel = $("gt-bares-painel");
+  painel.innerHTML = "";
+  if(!baresLista.length){
+    painel.innerHTML = '<span class="mini">Cadastre um bar primeiro.</span>';
+    atualizarBotaoBaresGestor();
+    return;
+  }
+  const tn = document.createElement("div");
+  tn.className = "tn";
+  tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+  tn.onclick = ev => {
+    const a = ev.target.dataset.a;
+    if(!a) return;
+    if(a === "todos") baresLista.forEach(b => gtBaresSelecionados.add(b.id));
+    else gtBaresSelecionados.clear();
+    montarDropdownBaresGestor();
+  };
+  painel.appendChild(tn);
+
+  const lbMaster = document.createElement("label");
+  lbMaster.style.cssText = "font-weight:800; color:#8A6A00; border-bottom:1px solid #ddd; padding-bottom:8px; margin-bottom:4px";
+  const cbMaster = document.createElement("input");
+  cbMaster.type = "checkbox";
+  cbMaster.value = "*";
+  cbMaster.checked = gtBaresSelecionados.has("*");
+  cbMaster.onchange = () => {
+    if(cbMaster.checked) gtBaresSelecionados.add("*");
+    else gtBaresSelecionados.delete("*");
+    atualizarBotaoBaresGestor();
+  };
+  lbMaster.appendChild(cbMaster);
+  lbMaster.appendChild(document.createTextNode(" Todos os bares (master)"));
+  painel.appendChild(lbMaster);
+
+  baresLista.forEach(b => {
+    const lb = document.createElement("label");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.value = b.id;
+    cb.checked = gtBaresSelecionados.has(b.id);
+    cb.onchange = () => {
+      if(cb.checked) gtBaresSelecionados.add(b.id);
+      else gtBaresSelecionados.delete(b.id);
+      atualizarBotaoBaresGestor();
+    };
+    lb.appendChild(cb);
+    lb.appendChild(document.createTextNode(" " + (b.nome || b.id)));
+    painel.appendChild(lb);
+  });
+  atualizarBotaoBaresGestor();
+}
+function atualizarBotaoBaresGestor(){
+  const n = gtBaresSelecionados.size;
+  $("gt-bares-btn").textContent = (n
+    ? n + " bar" + (n > 1 ? "es" : "") + " selecionado" + (n > 1 ? "s" : "")
+    : "Selecionar bares") + " ▾";
+}
+$("gt-bares-btn").onclick = ev => {
+  ev.stopPropagation();
+  document.querySelectorAll(".f-painel").forEach(p => { if(p.id !== "gt-bares-painel") p.classList.remove("on"); });
+  $("gt-bares-painel").classList.toggle("on");
+};
+
+/* ── gestores ── */
+let gestoresLista = [];
+async function carregarGestores(){
+  try{
+    const r = await fetch(API + "/admin/gestores");
+    gestoresLista = await r.json();
+    const nomeBar = id => id === "*" ? "Todos os bares" : (baresLista.find(b => b.id === id) || {}).nome || id;
+    $("t-gestores").innerHTML = gestoresLista.length
+      ? gestoresLista.map(g => `<tr>
+          <td><strong>${g.nome || "—"}</strong></td><td>${g.telefone || "—"}</td>
+          <td>${(g.bar_ids || []).map(nomeBar).join(", ") || "—"}</td>
+          <td>${g.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarGestor("${g.id}")'>editar</button> <button class="btn-x" onclick="apagarGestor('${g.id}', '${(g.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="5" class="carregando">Nenhum gestor cadastrado.</td></tr>';
+  }catch(e){
+    $("t-gestores").innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+let editandoGestorId = null;
+function editarGestor(id){
+  const g = gestoresLista.find(x => x.id === id);
+  if(!g) return;
+  editandoGestorId = id;
+  $("gt-id").value = g.id; $("gt-id").disabled = true;
+  $("gt-nome").value = g.nome || "";
+  $("gt-senha").value = "";
+  $("gt-senha").placeholder = "deixe em branco para manter a atual";
+  $("gt-tel").value = g.telefone || "";
+  gtBaresSelecionados = new Set(g.bar_ids || []);
+  montarDropdownBaresGestor();
+  $("gestor-form-titulo").textContent = "Editar gestor — " + g.id;
+  $("b-criar-gestor").textContent = "Salvar alterações";
+  $("b-cancelar-gestor").style.display = "inline-block";
+  $("b-alternar-gestor").style.display = "inline-block";
+  $("b-alternar-gestor").textContent = (g.ativo === false) ? "Ativar gestor" : "Desativar gestor";
+  $("aba-gestores").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoGestor(){
+  editandoGestorId = null;
+  $("gt-id").value = ""; $("gt-id").disabled = false;
+  $("gt-nome").value = ""; $("gt-senha").value = ""; $("gt-senha").placeholder = "senha do gestor"; $("gt-tel").value = "";
+  gtBaresSelecionados.clear();
+  montarDropdownBaresGestor();
+  $("gestor-form-titulo").textContent = "Novo gestor";
+  $("b-criar-gestor").textContent = "Criar gestor";
+  $("b-cancelar-gestor").style.display = "none";
+  $("b-alternar-gestor").style.display = "none";
+  $("m-gestor").textContent = "";
+}
+$("b-cancelar-gestor").onclick = cancelarEdicaoGestor;
+
+$("b-alternar-gestor").onclick = async () => {
+  const g = gestoresLista.find(x => x.id === editandoGestorId);
+  if(!g) return;
+  const novoAtivo = g.ativo === false;
+  const btn = $("b-alternar-gestor");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: g.id, nome: g.nome, bar_ids: g.bar_ids || [], telefone: g.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/gestores", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoGestor();
+    carregarGestores();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
+
+$("b-criar-gestor").onclick = async () => {
+  const m = $("m-gestor");
+  const id = ($("gt-id").value || "").trim();
+  const nome = ($("gt-nome").value || "").trim();
+  const senha = $("gt-senha").value;
+  const bar_ids = [...gtBaresSelecionados];
+  if(!id || !nome || !bar_ids.length || (!editandoGestorId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome, senha e marque ao menos 1 bar.";
+    return;
+  }
+  m.className = "msg"; m.textContent = editandoGestorId ? "Salvando…" : "Criando…";
+  try{
+    const corpo = {id, nome, bar_ids, telefone: ($("gt-tel").value||"").replace(/\D/g,""), ativo: true};
+    if(senha) corpo.senha = senha;
+    const r = await fetch(API + "/admin/gestores", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoGestorId ? "Gestor atualizado." : "Gestor criado. Login: " + id;
+    cancelarEdicaoGestor();
+    carregarGestores();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+function apagarGestor(id, nome){
+  confirmarExclusao(
+    "Apagar gestor?",
+    (nome || id) + " perde o acesso ao painel imediatamente.",
+    "/admin/gestores/" + id,
+    carregarGestores
+  );
+}
+
+/* ── admins ── */
+let adminsLista = [];
+async function carregarAdmins(){
+  try{
+    const r = await fetch(API + "/admin/admins");
+    adminsLista = await r.json();
+    $("t-admins").innerHTML = adminsLista.length
+      ? adminsLista.map(a => `<tr>
+          <td><strong>${a.nome || "—"}</strong></td>
+          <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td><button class="btn-x" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarAdmin("${a.id}")'>editar</button> <button class="btn-x" onclick="apagarAdmin('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="3" class="carregando">Nenhum admin cadastrado.</td></tr>';
+  }catch(e){
+    $("t-admins").innerHTML = '<tr><td colspan="3" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+let editandoAdminId = null;
+function editarAdmin(id){
+  const a = adminsLista.find(x => x.id === id);
+  if(!a) return;
+  editandoAdminId = id;
+  $("ad-id").value = a.id; $("ad-id").disabled = true;
+  $("ad-nome").value = a.nome || "";
+  $("ad-senha").value = "";
+  $("ad-senha").placeholder = "deixe em branco para manter a atual";
+  $("admin-form-titulo").textContent = "Editar admin — " + a.id;
+  $("b-criar-admin").textContent = "Salvar alterações";
+  $("b-cancelar-admin").style.display = "inline-block";
+  $("b-alternar-admin").style.display = "inline-block";
+  $("b-alternar-admin").textContent = (a.ativo === false) ? "Ativar admin" : "Desativar admin";
+  $("aba-admins").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoAdmin(){
+  editandoAdminId = null;
+  $("ad-id").value = ""; $("ad-id").disabled = false;
+  $("ad-nome").value = ""; $("ad-senha").value = ""; $("ad-senha").placeholder = "senha do admin";
+  $("admin-form-titulo").textContent = "Novo admin";
+  $("b-criar-admin").textContent = "Criar admin";
+  $("b-cancelar-admin").style.display = "none";
+  $("b-alternar-admin").style.display = "none";
+  $("m-admin").textContent = "";
+}
+$("b-cancelar-admin").onclick = cancelarEdicaoAdmin;
+
+$("b-alternar-admin").onclick = async () => {
+  const a = adminsLista.find(x => x.id === editandoAdminId);
+  if(!a) return;
+  const novoAtivo = a.ativo === false;
+  const btn = $("b-alternar-admin");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: a.id, nome: a.nome, ativo: novoAtivo};
+    const r = await fetch(API + "/admin/admins", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoAdmin();
+    carregarAdmins();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
+
+$("b-criar-admin").onclick = async () => {
+  const m = $("m-admin");
+  const id = ($("ad-id").value || "").trim();
+  const nome = ($("ad-nome").value || "").trim();
+  const senha = $("ad-senha").value;
+  if(!id || !nome || (!editandoAdminId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome e senha.";
+    return;
+  }
+  m.className = "msg"; m.textContent = editandoAdminId ? "Salvando…" : "Criando…";
+  try{
+    const corpo = {id, nome, ativo: true};
+    if(senha) corpo.senha = senha;
+    const r = await fetch(API + "/admin/admins", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoAdminId ? "Admin atualizado." : "Admin criado. Login: " + id;
+    cancelarEdicaoAdmin();
+    carregarAdmins();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+function apagarAdmin(id, nome){
+  confirmarExclusao(
+    "Apagar admin?",
+    (nome || id) + " perde o acesso total imediatamente.",
+    "/admin/admins/" + id,
+    carregarAdmins
+  );
+}
+
+/* ── colabs ── */
+let colabsLista = [];
+async function carregarColabs(){
+  const dias = parseInt($("al-dias")?.value || "30", 10);
+  try{
+    const [rc, rs] = await Promise.all([
+      fetch(API + "/admin/colabs"),
+      fetch(API + "/admin/colabs/stats?dias=" + dias)
+    ]);
+    colabsLista = await rc.json();
+    const colabsStats = (await rs.json()).colabs || {};
+    const cel = (s, cat) => s ? `<td class="num">${s[cat+"_janela"]} / ${s[cat+"_total"]}</td>` : '<td class="num">0 / 0</td>';
+    const nomeBar = id => (baresLista.find(b => b.id === id) || {}).nome || id || "—";
+    // coluna PRATOS: "7 de 10 · 4 entregues" (vermelho em "10 de 10 · a entregar"); "—" se o bar nao aceita pratos
+    const celPratos = s => {
+      if(!s || !s.bar_aceita_pratos) return '<td class="num" style="color:#6E6E68">—</td>';
+      const meta = s.pratos_para_premio || 10;
+      return s.prato_liberado
+        ? `<td class="num" style="white-space:nowrap"><strong style="color:#FF6B6B">${meta} de ${meta}</strong><br><span style="font-size:10px;font-weight:800;color:#FF6B6B;letter-spacing:.04em">A ENTREGAR</span></td>`
+        : `<td class="num" style="white-space:nowrap"><strong>${s.pratos_ciclo || 0} de ${meta}</strong><br><span style="font-size:10px;color:#A8A8A2;letter-spacing:.04em">${s.pratos_entregues || 0} ENTREGUES</span></td>`;
+    };
+    $("t-colabs").innerHTML = colabsLista.length
+      ? colabsLista.map(a => {
+          const s = colabsStats[a.id];
+          return `<tr>
+          <td><strong>${a.nome || "—"}</strong></td><td>${a.telefone || "—"}</td>
+          <td>${nomeBar(a.bar_id)}</td>
+          ${cel(s,"cadastros")}${cel(s,"ativos")}${celPratos(s)}
+          <td>${a.ativo === false ? '<span class="pill neutro">inativo</span>' : '<span class="pill ok">ativo</span>'}</td>
+          <td style="white-space:nowrap; text-align:right">
+            <button class="btn-x btn-x-sm" style="color:#D6D4CC;border-color:#4A4A4A" onclick="abrirQrColab('${a.id}')">QR/link</button>
+            <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick="baixarDisplayColab('${a.id}', this)">Display</button>
+            <button class="btn-x btn-x-sm" style="color:var(--ambar);border-color:#5A4A1A" onclick='editarColab("${a.id}")'>editar</button>
+            <button class="btn-x btn-x-sm" onclick="apagarColab('${a.id}', '${(a.nome || "").replace(/'/g, "")}')">apagar</button>
+          </td>
+        </tr>`;}).join("")
+      : '<tr><td colspan="8" class="carregando">Nenhum colab cadastrado.</td></tr>';
+  }catch(e){
+    $("t-colabs").innerHTML = '<tr><td colspan="8" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+$("b-colabs-atualizar").onclick = carregarColabs;
+
+let editandoColabId = null;
+function editarColab(id){
+  const a = colabsLista.find(x => x.id === id);
+  if(!a) return;
+  editandoColabId = id;
+  $("al-id").value = a.id; $("al-id").disabled = true;
+  $("al-nome").value = a.nome || "";
+  $("al-senha").value = "";
+  $("al-senha").placeholder = "deixe em branco para manter a atual";
+  $("al-tel").value = a.telefone || "";
+  $("al-bar").value = a.bar_id || "";
+  $("colab-form-titulo").textContent = "Editar colab — " + a.id;
+  $("b-criar-colab").textContent = "Salvar alterações";
+  $("b-cancelar-colab").style.display = "inline-block";
+  $("b-alternar-colab").style.display = "inline-block";
+  $("b-alternar-colab").textContent = (a.ativo === false) ? "Ativar colab" : "Desativar colab";
+  $("aba-colabs").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function cancelarEdicaoColab(){
+  editandoColabId = null;
+  $("al-id").value = ""; $("al-id").disabled = false;
+  $("al-nome").value = ""; $("al-senha").value = ""; $("al-senha").placeholder = "senha do colab"; $("al-tel").value = "";
+  $("colab-form-titulo").textContent = "Novo colab";
+  $("b-criar-colab").textContent = "Criar colab";
+  $("b-cancelar-colab").style.display = "none";
+  $("b-alternar-colab").style.display = "none";
+  $("m-colab").textContent = "";
+}
+$("b-cancelar-colab").onclick = cancelarEdicaoColab;
+
+$("b-alternar-colab").onclick = async () => {
+  const a = colabsLista.find(x => x.id === editandoColabId);
+  if(!a) return;
+  const novoAtivo = a.ativo === false;
+  const btn = $("b-alternar-colab");
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = "Salvando…";
+  try{
+    const corpo = {id: a.id, nome: a.nome, bar_id: a.bar_id, bar_nome: a.bar_nome, telefone: a.telefone || "", ativo: novoAtivo};
+    const r = await fetch(API + "/admin/colabs", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(!r.ok) throw 0;
+    cancelarEdicaoColab();
+    carregarColabs();
+  }catch(e){
+    btn.disabled = false; btn.textContent = textoOriginal;
+    alert("Não foi possível alterar o status. Tente de novo.");
+  }
+};
+
+$("b-criar-colab").onclick = async () => {
+  const m = $("m-colab");
+  const id = ($("al-id").value || "").trim();
+  const nome = ($("al-nome").value || "").trim();
+  const senha = $("al-senha").value;
+  const bar_id = $("al-bar").value;
+  const telefone = ($("al-tel").value || "").replace(/\D/g, "");
+  if(!id || !nome || !bar_id || (!editandoColabId && !senha)){
+    m.className = "msg erro"; m.textContent = "Preencha ID, nome, bar e senha.";
+    return;
+  }
+  m.className = "msg"; m.textContent = editandoColabId ? "Salvando…" : "Criando…";
+  try{
+    const barNome = $("al-bar").selectedOptions[0]?.textContent || bar_id;
+    const corpo = {id, nome, bar_id, bar_nome: barNome, telefone, ativo: true};
+    if(senha) corpo.senha = senha;
+    const r = await fetch(API + "/admin/colabs", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(corpo)
+    });
+    if(r.status === 409){
+      const d = await r.json();
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um associado.";
+      return;
+    }
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = editandoColabId ? "Colab atualizado." : "Colab criado. Login: " + id;
+    cancelarEdicaoColab();
+    carregarColabs();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
+};
+function apagarColab(id, nome){
+  confirmarExclusao(
+    "Apagar colab?",
+    (nome || id) + " perde o acesso ao painel e o QR dele para de funcionar.",
+    "/admin/colabs/" + id,
+    carregarColabs
+  );
+}
+
+function abrirQrColab(id){
+  const link = API + "/c/" + encodeURIComponent(id);
+  document.getElementById("mq-titulo").textContent = "Cadastro — colab " + id;
+  document.getElementById("mq-img").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
+  document.getElementById("mq-link").textContent = link;
+  document.getElementById("mq-arte-msg").textContent = "";
+  const b = document.getElementById("mq-copiar");
+  b.textContent = "Copiar link";
+  b.onclick = async () => {
+    try{
+      await navigator.clipboard.writeText(link);
+      b.textContent = "Copiado!";
+      setTimeout(() => b.textContent = "Copiar link", 1500);
+    }catch(e){ alert(link); }
+  };
+  document.getElementById("mq-baixar-arte").onclick = () =>
+    baixarArteQr(link, "colab-" + id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
+  document.getElementById("modal-qr").classList.add("on");
+}
+function baixarDisplayColab(id, btnEl){
+  const link = API + "/c/" + encodeURIComponent(id);
+  baixarArteQr(link, "colab-" + id, btnEl, null);
+}
+
+/* ── árvores ── */
+let arvoresLista = [];
+
+function arvoreTelefone(a){ return a.telefone ?? a.tel ?? ""; }
+function arvoreNome(a){ return a.nome ?? "—"; }
+function arvoreMarco(a){ return a.marco ?? "—"; }
+function arvoreDetectadaEm(a){ return a.detectada_em ?? a.detectado_em ?? null; }
+
+async function carregarArvores(){
+  const tb = $("t-arvores");
+  tb.innerHTML = '<tr><td colspan="5" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/arvores");
+    const d = await r.json();
+    arvoresLista = Array.isArray(d) ? d : (d.arvores || d.pendentes || []);
+    renderArvores();
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+  }
+}
+
+function renderArvores(){
+  const tb = $("t-arvores");
+  if(!arvoresLista.length){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Nenhuma árvore pendente no momento.</td></tr>';
+    $("arvores-resumo").textContent = "";
+    return;
+  }
+  const lista = [...arvoresLista].sort((a,b) =>
+    (arvoreDetectadaEm(a) || "").localeCompare(arvoreDetectadaEm(b) || ""));
+  tb.innerHTML = lista.map(a => {
+    const tel = arvoreTelefone(a);
+    const marco = arvoreMarco(a);
+    const det = arvoreDetectadaEm(a);
+    const dataFmt = det ? new Date(det).toLocaleDateString("pt-BR") : "—";
+    return `<tr>
+      <td><strong>${arvoreNome(a)}</strong></td>
+      <td>${tel || "—"}</td>
+      <td class="num">${marco}</td>
+      <td>${dataFmt}</td>
+      <td><button class="btn-x" style="color:var(--verde);border-color:#1F4A2F" onclick="marcarArvorePlantada('${tel}', ${JSON.stringify(marco)}, this)">marcar como plantada</button></td>
+    </tr>`;
+  }).join("");
+  $("arvores-resumo").textContent = lista.length + " árvore(s) pendente(s) de plantio.";
+}
+
+async function marcarArvorePlantada(telefone, marco, btnEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Marcando…";
+  try{
+    const r = await fetch(API + "/admin/arvores/marcar", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefone, marco})
+    });
+    if(!r.ok) throw 0;
+    carregarArvores();
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    alert("Não foi possível marcar como plantada. Tente de novo.");
+  }
+}
+$("b-arvores-recarregar").onclick = carregarArvores;
+
+/* ── mensagens ── */
+let mensagensLista = [];
+let telefonesComMensagemNaoLida = new Set();
+let mensagensFiltroTel = "";
+
+async function carregarMensagens(){
+  const tb = $("t-mensagens");
+  if(tb) tb.innerHTML = '<tr><td colspan="6" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/mensagens");
+    mensagensLista = await r.json();
+  }catch(e){
+    mensagensLista = [];
+    if(tb) tb.innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar.</td></tr>';
+  }
+  telefonesComMensagemNaoLida = new Set(
+    mensagensLista.filter(m => !m.lida).map(m => m.telefone)
+  );
+  renderMensagens();
+  // se a tabela de socios ja carregou, atualiza os alertas nela tambem
+  if(consumidoresLista.length) renderConsumidores();
+}
+
+function renderMensagens(){
+  const tb = $("t-mensagens");
+  if(!tb) return;
+  const lista = mensagensFiltroTel
+    ? mensagensLista.filter(m => m.telefone === mensagensFiltroTel)
+    : mensagensLista;
+
+  if(!lista.length){
+    tb.innerHTML = '<tr><td colspan="6" class="carregando">' +
+      (mensagensFiltroTel ? "Nenhuma mensagem deste sócio." : "Nenhuma mensagem recebida ainda.") +
+      '</td></tr>';
+  } else {
+    tb.innerHTML = lista.map(m => {
+      const data = m.data ? new Date(m.data).toLocaleString("pt-BR") : "—";
+      const status = m.lida
+        ? '<span class="pill neutro">lida</span>'
+        : '<span class="pill atencao">não lida</span>';
+      const acao = m.lida
+        ? ""
+        : `<button class="btn-x" style="color:var(--verde);border-color:#1F4A2F" onclick="marcarMensagemLida('${m.id}', this)">marcar como lida</button>`;
+      return `<tr>
+        <td><strong>${m.nome || "—"}</strong></td>
+        <td>${m.telefone}</td>
+        <td style="white-space:normal; max-width:360px">${m.texto}</td>
+        <td style="white-space:nowrap">${data}</td>
+        <td>${status}</td>
+        <td>${acao}</td>
+      </tr>`;
+    }).join("");
+  }
+  $("mensagens-resumo").textContent = telefonesComMensagemNaoLida.size + " sócio(s) com mensagem pendente.";
+  $("msg-filtro-tel").value = mensagensFiltroTel;
+}
+
+async function marcarMensagemLida(id, btnEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Marcando…";
+  try{
+    const r = await fetch(API + "/admin/mensagens/marcar", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id})
+    });
+    if(!r.ok) throw 0;
+    carregarMensagens();
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    alert("Não foi possível marcar como lida. Tente de novo.");
+  }
+}
+
+function abrirMensagensDoSocio(telefone){
+  mensagensFiltroTel = telefone;
+  irParaAba("mensagens");
+  renderMensagens();
+}
+
+$("msg-filtro-tel").oninput = () => {
+  mensagensFiltroTel = $("msg-filtro-tel").value.trim();
+  renderMensagens();
+};
+$("b-msg-limpar-filtro").onclick = () => {
+  mensagensFiltroTel = "";
+  renderMensagens();
+};
+$("b-msg-recarregar").onclick = carregarMensagens;
+
+
+/* ── reembolsos de chopps aos bares ── */
+let reembBarAberto = null;   // {id, nome}
+
+function rbEsc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function rbNum(n){ return (n || 0).toLocaleString("pt-BR"); }
+function rbData(iso){
+  const p = (iso || "").split("-");
+  return p.length === 3 ? p[2] + "/" + p[1] + "/" + p[0].slice(2) : (iso || "—");
+}
+
+async function carregarReembolsos(){
+  const tb = $("t-reembolsos");
+  tb.innerHTML = '<tr><td colspan="5" class="carregando">Carregando…</td></tr>';
+  try{
+    const r = await fetch(API + "/admin/reembolsos");
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    $("rb-total-dist").textContent = rbNum(d.totais.distribuidos);
+    $("rb-total-reemb").textContent = rbNum(d.totais.reembolsados);
+    $("rb-total-saldo").textContent = rbNum(d.totais.saldo);
+    tb.innerHTML = d.bares.length ? d.bares.map(b => {
+      const aberto = reembBarAberto && reembBarAberto.id === b.bar_id;
+      const corSaldo = b.saldo > 0 ? "var(--ambar)" : "var(--cinza)";
+      return `<tr${aberto ? ' style="background:#1C1A12"' : ""}>
+        <td><strong>${rbEsc(b.nome)}</strong></td>
+        <td class="num">${rbNum(b.distribuidos)}</td>
+        <td class="num" style="color:#5FD08A">${rbNum(b.reembolsados)}</td>
+        <td class="num" style="color:${corSaldo}; font-weight:800">${rbNum(b.saldo)}</td>
+        <td class="num"><button class="btn-x" style="color:var(--ambar); border-color:#5A4A1A"
+          onclick="abrirFichaReembolso('${rbEsc(b.bar_id)}', '${rbEsc(b.nome).replace(/'/g, "")}')">${aberto ? "ficha aberta ↓" : "abrir ficha"}</button></td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="5" class="carregando">Nenhum bar cadastrado.</td></tr>';
+  }catch(e){
+    tb.innerHTML = '<tr><td colspan="5" class="carregando">Erro ao carregar. O servidor pode estar acordando — tente de novo.</td></tr>';
+  }
+}
+
+async function abrirFichaReembolso(id, nome){
+  reembBarAberto = {id, nome};
+  $("rb-ficha").style.display = "block";
+  $("rb-ficha-titulo").textContent = "Ficha — " + nome;
+  $("rb-ficha-sub").textContent = "Carregando…";
+  $("t-rb-ficha").innerHTML = '<tr><td colspan="6" class="carregando">Carregando…</td></tr>';
+  $("rb-msg").textContent = "";
+  $("rb-data").value = new Date().toLocaleDateString("sv-SE"); // AAAA-MM-DD local
+  $("rb-ref").value = "";
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(id) + "/reembolsos");
+    if(!r.ok) throw 0;
+    const d = await r.json();
+    const t = d.totais;
+    $("rb-ficha-sub").textContent = t.boasvindas + " de boas-vindas + " + t.resgates + " de resgates = " + t.distribuidos + " distribuídos";
+    $("rb-qtd").value = t.saldo > 0 ? t.saldo : "";
+    $("t-rb-ficha").innerHTML = (d.linhas.length ? d.linhas.map(l => {
+      const ent = l.tipo === "entrada";
+      const estorno = ent ? "" :
+        `<button class="btn-x" onclick="estornarDesconto('${rbEsc(l.id)}', ${l.quantidade})">estornar</button>`;
+      return `<tr${ent ? "" : ' style="background:#0F1F16"'}>
+        <td style="white-space:nowrap; color:var(--cinza)">${rbData(l.data)}</td>
+        <td>${rbEsc(l.descricao)}</td>
+        <td class="num" style="color:${ent ? "#FF6B6B" : "var(--cinza)"}">${ent ? "+" + rbNum(l.quantidade) : "—"}</td>
+        <td class="num" style="color:${ent ? "var(--cinza)" : "#5FD08A"}">${ent ? "—" : "−" + rbNum(l.quantidade)}</td>
+        <td class="num"><strong>${rbNum(l.saldo)}</strong></td>
+        <td class="num">${estorno}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="6" class="carregando">Nenhum movimento neste bar ainda.</td></tr>') +
+    `<tr style="background:#1C1A12; font-weight:800">
+      <td></td><td>TOTAIS</td>
+      <td class="num" style="color:#FF6B6B">${rbNum(t.distribuidos)}</td>
+      <td class="num" style="color:#5FD08A">${rbNum(t.reembolsados)}</td>
+      <td class="num" style="color:var(--ambar)">${rbNum(t.saldo)}</td><td></td>
+    </tr>`;
+  }catch(e){
+    $("rb-ficha-sub").textContent = "";
+    $("t-rb-ficha").innerHTML = '<tr><td colspan="6" class="carregando">Erro ao carregar a ficha.</td></tr>';
+  }
+}
+
+async function lancarDesconto(){
+  const m = $("rb-msg");
+  const qtd = parseInt($("rb-qtd").value, 10);
+  const data = $("rb-data").value;
+  if(!reembBarAberto){ return; }
+  if(!data){ m.className = "msg erro"; m.textContent = "Informe a data do desconto."; return; }
+  if(!qtd || qtd <= 0){ m.className = "msg erro"; m.textContent = "Informe a quantidade de chopps."; return; }
+  const b = $("b-rb-lancar");
+  b.disabled = true; m.className = "msg"; m.textContent = "Lançando…";
+  try{
+    const r = await fetch(API + "/admin/reembolsos", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({bar: reembBarAberto.id, data, quantidade: qtd, referencia: $("rb-ref").value.trim()})
+    });
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = "Desconto de " + qtd + " chopps lançado.";
+    await abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome);
+    $("rb-msg").className = "msg ok"; $("rb-msg").textContent = "Desconto de " + qtd + " chopps lançado.";
+    carregarReembolsos();
+  }catch(e){
+    m.className = "msg erro"; m.textContent = "Não foi possível lançar. Tente de novo.";
+  }finally{ b.disabled = false; }
+}
+
+function estornarDesconto(id, qtd){
+  confirmarExclusao(
+    "Estornar desconto?",
+    "O desconto de " + qtd + " chopps será removido da planilha e o saldo do bar volta a subir.",
+    "/admin/reembolsos/" + id,
+    () => { abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome); carregarReembolsos(); }
+  );
+}
+
+$("b-rb-lancar").onclick = lancarDesconto;
+$("b-reemb-recarregar").onclick = () => {
+  carregarReembolsos();
+  if(reembBarAberto) abrirFichaReembolso(reembBarAberto.id, reembBarAberto.nome);
+};
+
+
+/* ── exclusao com confirmacao ── */
+function fecharModal(){ document.getElementById("modal").classList.remove("on"); }
+function confirmarExclusao(titulo, texto, url, aoTerminar){
+  const mo = document.getElementById("modal");
+  document.getElementById("mo-titulo").textContent = titulo;
+  document.getElementById("mo-texto").textContent = texto;
+  const b = document.getElementById("mo-confirmar");
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = "Apagando…";
+    try{
+      const r = await fetch(API + url, {method:"DELETE"});
+      if(!r.ok) throw 0;
+      fecharModal(); aoTerminar();
+    }catch(e){ alert("Não foi possível apagar."); }
+    finally{ b.disabled = false; b.textContent = "Apagar"; }
+  };
+  mo.classList.add("on");
+}
+
+
+function apagarConsumidor(tel, nome){
+  confirmarExclusao(
+    "Apagar sócio?",
+    (nome || tel) + " (" + tel + ") será removido para sempre, junto com o registro de push. O cartão na Wallet dele deixa de atualizar.",
+    "/admin/consumidores/" + tel,
+    carregarConsumidores
+  );
+}
+function apagarBar(id){
+  confirmarExclusao(
+    "Apagar bar?",
+    "O bar " + id + " será removido. Garçons e sócios vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
+    "/admin/bares/" + id,
+    carregarBares
+  );
+}
+function apagarGarcom(id, nome){
+  confirmarExclusao(
+    "Apagar garçom?",
+    (nome || id) + " perde o acesso ao scanner imediatamente.",
+    "/admin/garcons/" + id,
+    carregarGarcons
+  );
+}
+
+$("b-stats").onclick = carregarGarcons;
+
+
+/* ── push em massa ── */
+let pmBase = [];          // todos os consumidores
+let pmFiltros = {};       // campo -> Set de valores aceitos (ausente = todos)
+let pmDesmarcados = new Set();
+
+const PM_CAMPOS = [
+  {id:"bar",  rotulo:"Bar",          extrai: c => c.indicador || "—"},
+  {id:"mes",  rotulo:"Mês",          extrai: c => String(parseInt(c.nascimento_mes||0) || "—")},
+  {id:"dia",  rotulo:"Dia",          extrai: c => String(parseInt(c.nascimento_dia||0) || "—")},
+  {id:"time", rotulo:"Time",         extrai: c => c.time || "—"},
+  {id:"pend", rotulo:"Pendente", extrai: c =>
+      (c.recompensas||[]).some(r => r.tipo === "boas_vindas" && !r.resgatada) ? "sim" : "não"},
+  {id:"resg", rotulo:"Resgates",     extrai: c => {
+      const n = (c.recompensas||[]).filter(r => r.resgatada).length;
+      return n === 0 ? "0" : (n <= 2 ? "1-2" : "3+");
+  }},
+  {id:"visitas", rotulo:"Visitas", extrai: c => {
+      const v = c.dias_visitados || 0;
+      return v === 0 ? "0" : (v <= 2 ? "1-2" : (v <= 5 ? "3-5" : "6+"));
+  }},
+  {id:"cep",  rotulo:"CEP",          extrai: c =>
+      (c.cep || "").length >= 5 ? (c.cep.slice(0,5) + "-xxx") : "—"},
+];
+
+function pmValor(c, id){ return PM_CAMPOS.find(f => f.id === id).extrai(c); }
+
+function pmFiltrados(){
+  return pmBase.filter(c => PM_CAMPOS.every(f => {
+    const s = pmFiltros[f.id];
+    return !s || s.has(f.extrai(c));
+  }));
+}
+
+function pmMontarFiltros(){
+  PM_CAMPOS.forEach(f => {
+    const alvo = document.querySelector('.f-col[data-campo="' + f.id + '"]');
+    if(!alvo) return;
+    alvo.innerHTML = "";
+    const valores = [...new Set(pmBase.map(f.extrai))].sort((a,b) =>
+      (parseInt(a)||999) - (parseInt(b)||999) || String(a).localeCompare(b));
+    const drop = document.createElement("div");
+    drop.className = "f-drop";
+    const sel = pmFiltros[f.id];
+    const btn = document.createElement("button");
+    btn.className = "f-btn f-col-btn" + (sel ? " ativo" : "");
+    btn.textContent = f.rotulo.toUpperCase() + (sel ? " (" + sel.size + ") ▾" : " ▾");
+    const painel = document.createElement("div");
+    painel.className = "f-painel";
+    const tn = document.createElement("div");
+    tn.className = "tn";
+    tn.innerHTML = "<span data-a='todos'>Todos</span><span data-a='nenhum'>Nenhum</span>";
+    painel.appendChild(tn);
+    valores.forEach(v => {
+      const lb = document.createElement("label");
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !sel || sel.has(v);
+      cb.onchange = () => {
+        const marcados = [...painel.querySelectorAll("label input")].filter(x => x.checked)
+          .map(x => x.dataset.v);
+        pmFiltros[f.id] = marcados.length === valores.length ? null : new Set(marcados);
+        if(!pmFiltros[f.id]) delete pmFiltros[f.id];
+        pmRender(); pmMontarFiltros();
+        painel.classList.add("on");
+      };
+      cb.dataset.v = v;
+      lb.appendChild(cb);
+      lb.appendChild(document.createTextNode(v));
+      painel.appendChild(lb);
+    });
+    tn.onclick = ev => {
+      const a = ev.target.dataset.a;
+      if(!a) return;
+      if(a === "todos"){ delete pmFiltros[f.id]; }
+      else { pmFiltros[f.id] = new Set(); }
+      pmRender(); pmMontarFiltros();
+    };
+    btn.onclick = ev => {
+      ev.stopPropagation();
+      document.querySelectorAll(".f-painel").forEach(p => { if(p !== painel) p.classList.remove("on"); });
+      painel.classList.toggle("on");
+    };
+    if(f.id === "pend" || f.id === "resg" || f.id === "cep") painel.style.cssText += "left:auto; right:0";
+    drop.appendChild(btn); drop.appendChild(painel);
+    alvo.appendChild(drop);
+  });
+}
+document.addEventListener("click", () =>
+  document.querySelectorAll(".f-painel").forEach(p => p.classList.remove("on")));
+
+function pmRender(){
+  const lista = pmFiltrados();
+  const corpo = $("pm-corpo");
+  if(!lista.length){
+    corpo.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum sócio passa nos filtros.</td></tr>';
+  } else {
+    corpo.innerHTML = lista.map(c => {
+      const marcado = !pmDesmarcados.has(c.telefone);
+      const pend = pmValor(c, "pend");
+      return `<tr>
+        <td><input type="checkbox" data-tel="${c.telefone}" ${marcado ? "checked" : ""}></td>
+        <td><strong>${c.nome || "—"}</strong></td>
+        <td>${c.telefone}</td>
+        <td>${c.indicador || "—"}</td>
+        <td class="num">${pmValor(c,"mes")}</td>
+        <td class="num">${pmValor(c,"dia")}</td>
+        <td>${c.time || "—"}</td>
+        <td style="color:${pend === "sim" ? "var(--ambar)" : "var(--cinza)"}">${pend}</td>
+        <td class="num">${(c.recompensas||[]).filter(r => r.resgatada).length}</td>
+        <td class="num">${c.dias_visitados ?? 0}</td>
+        <td>${c.cep ? c.cep.slice(0,5) + "-" + c.cep.slice(5) : "—"}</td>
+      </tr>`;
+    }).join("");
+    corpo.querySelectorAll("input[data-tel]").forEach(cb => {
+      cb.onchange = () => {
+        if(cb.checked) pmDesmarcados.delete(cb.dataset.tel);
+        else pmDesmarcados.add(cb.dataset.tel);
+        pmContar();
+      };
+    });
+  }
+  pmContar();
+}
+
+function pmSelecionados(){
+  return pmFiltrados().map(c => c.telefone).filter(t => !pmDesmarcados.has(t));
+}
+
+function pmContar(){
+  const f = pmFiltrados().length, s = pmSelecionados().length;
+  $("pm-contador").textContent = s + " selecionados de " + f + " filtrados";
+  $("pm-enviar").textContent = "Enviar para " + s + " selecionado" + (s === 1 ? "" : "s");
+}
+
+$("pm-todos").onchange = ev => {
+  if(ev.target.checked) pmDesmarcados.clear();
+  else pmFiltrados().forEach(c => pmDesmarcados.add(c.telefone));
+  pmRender();
+};
+
+$("pm-enviar").onclick = async () => {
+  const tels = pmSelecionados();
+  const texto = $("pm-texto").value.trim();
+  const m = $("pm-resultado");
+  if(!tels.length || !texto){
+    m.className = "msg erro"; m.textContent = "Selecione sócios e escreva o texto."; return;
+  }
+  m.className = "msg"; m.textContent = "Enviando para " + tels.length + "…";
+  try{
+    const r = await fetch(API + "/admin/push-lote", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefones: tels, texto})
+    });
+    const d = await r.json();
+    if(!r.ok) throw 0;
+    m.className = "msg ok";
+    m.textContent = d.processados + " processados · " + d.com_dispositivo +
+      " com cartão instalado · " + d.sem_dispositivo + " sem dispositivo (aviso gravado)";
+  }catch(e){ m.className = "msg erro"; m.textContent = "Falha no envio."; }
+};
+
+async function pmCarregar(){
+  try{
+    const r = await fetch(API + "/admin/consumidores");
+    pmBase = await r.json();
+    pmMontarFiltros(); pmRender();
+  }catch(e){
+    $("pm-corpo").innerHTML = '<tr><td colspan="11" class="carregando">Erro ao carregar.</td></tr>';
+  }
+}
+
+
+/* ── QR e link de cadastro do bar ── */
+function abrirQrBar(id){
+  const link = "https://hthoni.github.io/backbone/cadastro.html?indicador=" + encodeURIComponent(id);
+  document.getElementById("mq-titulo").textContent = "Cadastro — " + id;
+  document.getElementById("mq-img").src =
+    "https://api.qrserver.com/v1/create-qr-code/?size=480x480&data=" + encodeURIComponent(link);
+  document.getElementById("mq-link").textContent = link;
+  document.getElementById("mq-arte-msg").textContent = "";
+  const b = document.getElementById("mq-copiar");
+  b.textContent = "Copiar link";
+  b.onclick = async () => {
+    try{
+      await navigator.clipboard.writeText(link);
+      b.textContent = "Copiado!";
+      setTimeout(() => b.textContent = "Copiar link", 1500);
+    }catch(e){ alert(link); }
+  };
+  document.getElementById("mq-baixar-arte").onclick = () =>
+    baixarArteQr(link, id, document.getElementById("mq-baixar-arte"), document.getElementById("mq-arte-msg"));
+  document.getElementById("modal-qr").classList.add("on");
+}
+function fecharModalQr(){ document.getElementById("modal-qr").classList.remove("on"); }
+
+/* Atalho direto na linha do bar: baixa o display sem abrir o modal */
+function baixarDisplayBar(id, btnEl){
+  const link = "https://hthoni.github.io/backbone/cadastro.html?indicador=" + encodeURIComponent(id);
+  baixarArteQr(link, id, btnEl, null);
+}
+
+/* ── arte pronta pra imprimir: template + QR compostos num canvas ── */
+async function baixarArteQr(link, barId, btnEl, msgEl){
+  const textoOriginal = btnEl.textContent;
+  btnEl.disabled = true; btnEl.textContent = "Gerando…";
+  if(msgEl) msgEl.textContent = "";
+  try{
+    const canvas = document.createElement("canvas");
+    canvas.width = 2000; canvas.height = 3000;
+    const ctx = canvas.getContext("2d");
+
+    // template.png precisa estar na raiz do repo, junto do clube_logo.png
+    const rTpl = await fetch("template_qr_bar.png");
+    if(!rTpl.ok) throw new Error("template_qr_bar.png não encontrado no repositório");
+    const tplBmp = await createImageBitmap(await rTpl.blob());
+    ctx.drawImage(tplBmp, 0, 0, 2000, 3000);
+
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=670x670&data=" + encodeURIComponent(link);
+    const rQr = await fetch(qrUrl);
+    if(!rQr.ok) throw new Error("Falha ao gerar o QR");
+    const qrBmp = await createImageBitmap(await rQr.blob());
+
+    // posicao da caixa cinza do template (medida no arquivo original 2000x3000)
+    const boxX = 660, boxY = 1878, boxSize = 679, pad = 8;
+    ctx.drawImage(qrBmp, boxX + pad, boxY + pad, boxSize - pad * 2, boxSize - pad * 2);
+
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "clube-backbone-display-" + barId + ".png";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    }, "image/png");
+  }catch(e){
+    btnEl.disabled = false; btnEl.textContent = textoOriginal;
+    if(msgEl) msgEl.textContent = "Não foi possível gerar: " + e.message;
+    else alert("Não foi possível gerar o display: " + e.message);
+  }
+}
+
+$("b-atualizar").onclick = carregarBares;
+$("b-filtro").onchange = renderBares;
+
+
+/* ── telefones bloqueados ── */
+async function carregarBloqueados(){
+  try{
+    const r = await fetch(API + "/admin/bloqueados");
+    const lista = await r.json();
+    document.getElementById("bl-total").textContent = lista.length;
+    document.getElementById("bl-atual").innerHTML = lista.length
+      ? lista.map(b => `<span class="pill neutro" style="display:inline-flex; align-items:center; gap:6px">${b.telefone}
+          <em style="font-style:normal; color:var(--ambar)">${b.bar === "*" ? "todos" : b.bar}</em>
+          <span style="cursor:pointer; color:#C96A6A; font-weight:800" onclick="desbloquear('${b.telefone}','${b.bar}')">×</span></span>`).join("")
+      : '<span class="mini">Nenhum número bloqueado.</span>';
+  }catch(e){}
+}
+document.getElementById("bl-adicionar").onclick = async () => {
+  const m = document.getElementById("bl-msg");
+  const brutos = document.getElementById("bl-lista").value.split(/[\n,;]+/);
+  const tels = brutos.map(t => t.replace(/\D/g, "")).filter(t => t.length >= 10 && t.length <= 13);
+  if(!tels.length){ m.className = "msg erro"; m.textContent = "Nenhum número válido na lista."; return; }
+  m.className = "msg"; m.textContent = "Bloqueando…";
+  try{
+    const r = await fetch(API + "/admin/bloqueados", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({telefones: tels, bar: document.getElementById("bl-bar").value})
+    });
+    const d = await r.json();
+    if(!r.ok) throw 0;
+    m.className = "msg ok"; m.textContent = d.adicionados + " número(s) bloqueado(s).";
+    document.getElementById("bl-lista").value = "";
+    carregarBloqueados();
+  }catch(e){ m.className = "msg erro"; m.textContent = "Falhou. Tente de novo."; }
+};
+async function desbloquear(tel, bar){
+  try{
+    await fetch(API + "/admin/bloqueados/" + tel + "?bar=" + encodeURIComponent(bar), {method:"DELETE"});
+    carregarBloqueados();
+  }catch(e){}
+}
+
+/* ── início ── */
+carregarBares().then(() => { carregarConsumidores(); carregarGestores(); carregarColabs(); });
+carregarAdmins();
+carregarConfig();
+carregarBloqueados();
+carregarGarcons();
+pmCarregar();
+carregarArvores();
+carregarMensagens();
+carregarReembolsos();
+</script>
+
+<div id="modal">
+  <div class="caixa">
+    <h3 id="mo-titulo"></h3>
+    <p id="mo-texto"></p>
+    <div class="acoes">
+      <button class="btn sec" onclick="fecharModal()">Cancelar</button>
+      <button class="btn perigo" id="mo-confirmar">Apagar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-qr">
+  <div class="caixa">
+    <h3 id="mq-titulo"></h3>
+    <img id="mq-img" alt="QR Code">
+    <div id="mq-link"></div>
+    <div class="acoes">
+      <button class="btn sec" onclick="fecharModalQr()">Fechar</button>
+      <button class="btn" id="mq-copiar">Copiar link</button>
+    </div>
+    <div class="acoes" style="margin-top:10px">
+      <button class="btn" id="mq-baixar-arte" style="background:var(--ambar); color:#151000">Baixar arte para imprimir</button>
+    </div>
+    <div class="mini" id="mq-arte-msg" style="margin-top:8px"></div>
+  </div>
+</div>
+</body>
+</html>

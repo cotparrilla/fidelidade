@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Meu Clube Backbone</title>
+<style>
+  :root{
+    --preto:#000; --preto2:#141414; --linha:#2E2E2E;
+    --branco:#FFF; --cinza:#A8A8A2;
+    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
+    --campo:#E9E7DF;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--preto); color:var(--branco);
+    min-height:100dvh; display:flex; flex-direction:column;
+    -webkit-font-smoothing:antialiased;
+  }
+  .cab{
+    display:flex; justify-content:center;
+    padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;
+    border-bottom:1px solid var(--linha); flex-shrink:0;
+  }
+  .cab img{height:48px; width:auto; display:block}
+
+  main{
+    flex:1; display:flex; flex-direction:column; justify-content:flex-start;
+    padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px));
+    max-width:480px; margin:0 auto; width:100%;
+  }
+  h1{font-size:22px; font-weight:800; line-height:1.2; margin-bottom:6px}
+  p{font-size:15px; line-height:1.45; color:#D6D4CC; margin-bottom:10px}
+
+  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 8px 2px}
+  input{
+    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
+    font-size:16px; font-weight:600; padding:14px 12px; border-radius:10px;
+    font-family:inherit;
+  }
+  input:focus{outline:none; border-color:var(--ambar)}
+  .grupo{margin-bottom:16px}
+
+  .btn{
+    display:block; width:100%; padding:16px; border:none; border-radius:14px;
+    font-size:18px; font-weight:800; text-align:center; text-decoration:none;
+    margin-top:6px; cursor:pointer; font-family:inherit;
+  }
+  .btn-verde{background:var(--verde); color:#FFF}
+  .btn:active{transform:scale(.985)}
+  .btn:disabled{opacity:.5}
+
+  .card-pontos{
+    background:#FFF; color:#000; border-radius:16px;
+    padding:24px; margin:6px 0 18px; text-align:center;
+  }
+  .card-pontos .n{font-size:44px; font-weight:800; line-height:1}
+  .card-pontos .r{font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6E6E68; margin-top:4px}
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px}
+  .metrica{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:14px; text-align:center;
+  }
+  .metrica .n{font-size:22px; font-weight:800}
+  .metrica .r{font-size:11px; color:var(--cinza); text-transform:uppercase; letter-spacing:.05em; margin-top:2px}
+
+  .aviso{
+    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
+    padding:14px; font-size:14px; color:#D6D4CC; line-height:1.45; margin-bottom:14px;
+  }
+  .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
+  .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
+  .link-trocar{
+    display:block; text-align:center; margin-top:18px; font-size:13px;
+    color:var(--cinza); text-decoration:underline; cursor:pointer; background:none; border:none;
+    font-family:inherit;
+  }
+</style>
+</head>
+<body>
+  <div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
+  <main id="conteudo"><p class="carregando">Carregando…</p></main>
+
+<script>
+const SERVER = "https://backbone-650557630362.us-central1.run.app";
+const alvo = document.getElementById("conteudo");
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const CHAVE_TEL = "bb_meu_telefone";
+
+function mascararTelefone(input){
+  input.addEventListener("input", () => {
+    let d = input.value.replace(/\D/g, "").slice(0, 11);
+    let f = d;
+    if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
+    if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+    input.value = f;
+  });
+}
+
+function telaEntrar(erroInicial){
+  alvo.innerHTML = `
+    <h1>Meu Clube Backbone</h1>
+    <p>Digite seu telefone pra ver sua cartela e seus pontos.</p>
+
+    <div class="grupo">
+      <label>SEU TELEFONE</label>
+      <input id="e-tel" type="tel" inputmode="numeric" autocomplete="tel"
+             placeholder="(21) 99999-9999">
+    </div>
+
+    <button class="btn btn-verde" id="e-entrar">Ver meus pontos</button>
+    <div class="erro-msg" id="e-erro">${erroInicial || ""}</div>
+  `;
+
+  const telInput = document.getElementById("e-tel");
+  mascararTelefone(telInput);
+  telInput.focus();
+
+  document.getElementById("e-entrar").onclick = async () => {
+    const tel = telInput.value.replace(/\D/g, "");
+    const erro = document.getElementById("e-erro");
+    if(tel.length < 10 || tel.length > 11){
+      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
+    }
+    erro.textContent = "";
+    const b = document.getElementById("e-entrar");
+    b.disabled = true; b.textContent = "Buscando…";
+    await buscarEMostrar("55" + tel, erro, b);
+  };
+}
+
+async function buscarEMostrar(telCompleto, erroEl, btnEl){
+  try{
+    const r = await fetch(SERVER + "/consumidor/" + telCompleto);
+    if(r.status === 404){
+      localStorage.removeItem(CHAVE_TEL);
+      if(erroEl){
+        erroEl.textContent = "Telefone não encontrado. Confira o número, ou faça seu cadastro primeiro.";
+        if(btnEl){ btnEl.disabled = false; btnEl.textContent = "Ver meus pontos"; }
+      } else {
+        telaEntrar("Não achamos seu cadastro. Digite seu telefone de novo.");
+      }
+      return;
+    }
+    if(!r.ok) throw 0;
+    const c = await r.json();
+    try{ localStorage.setItem(CHAVE_TEL, telCompleto); }catch(e){}
+    mostrarPerfil(c);
+  }catch(e){
+    if(erroEl){
+      erroEl.textContent = "Sem conexão. Tente de novo.";
+      if(btnEl){ btnEl.disabled = false; btnEl.textContent = "Ver meus pontos"; }
+    } else {
+      telaEntrar("Sem conexão. Digite seu telefone pra tentar de novo.");
+    }
+  }
+}
+
+function mostrarPerfil(c){
+  const botaoWallet = ehIOS
+    ? '<a class="btn btn-verde" href="' + SERVER + '/cartao/' + c.telefone + '">Abrir na Wallet do seu telefone</a>'
+    : '<a class="btn btn-verde" href="' + SERVER + '/gwallet/' + c.telefone + '">Abrir na Wallet do seu telefone</a>';
+
+  const chopps_totais = c.chopps_totais ?? 0;
+  const proximoMarco = Math.ceil((chopps_totais + 1) / 100) * 100;
+  const faltamArvore = proximoMarco - chopps_totais;
+
+  alvo.innerHTML = `
+    <h1>Olá, ${c.nome || "sócio"}!</h1>
+    <p>Aqui está sua cartela e o total de chopps que você já tomou com a gente.</p>
+
+    <div class="card-pontos">
+      <div class="n">${c.punches ?? 0}<span style="font-size:22px;color:#6E6E68">/${c.meta ?? 10}</span></div>
+      <div class="r">chopps na cartela atual</div>
+    </div>
+
+    <div class="grid">
+      <div class="metrica">
+        <div class="n">${chopps_totais}</div>
+        <div class="r">Chopps no total</div>
+      </div>
+      <div class="metrica">
+        <div class="n">${c.total_indicados ?? 0}</div>
+        <div class="r">Amigos indicados</div>
+      </div>
+    </div>
+
+    ${chopps_totais > 0 ? `<div class="aviso">🌳 Faltam <strong>${faltamArvore}</strong> chopps para completar ${proximoMarco} — a cada marco de 100, plantamos uma árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.</div>` : ""}
+
+    ${botaoWallet}
+    <button class="link-trocar" id="b-trocar-tel">Ver dados de outro telefone</button>
+  `;
+
+  document.getElementById("b-trocar-tel").onclick = () => {
+    localStorage.removeItem(CHAVE_TEL);
+    telaEntrar();
+  };
+}
+
+/* ══ INÍCIO ══ */
+(function(){
+  // vindo do botao "Meus pontos" do cartao Wallet: perfil.html?tel=5521999998888
+  const params = new URLSearchParams(location.search);
+  const telUrl = (params.get("tel") || "").replace(/\D/g, "");
+  if(telUrl.length >= 12){
+    history.replaceState(null, "", location.pathname);  // tira o telefone da barra
+    buscarEMostrar(telUrl, null, null);
+    return;
+  }
+  const salvo = localStorage.getItem(CHAVE_TEL);
+  if(salvo){
+    buscarEMostrar(salvo, null, null);
+  } else {
+    telaEntrar();
+  }
+})();
+</script>
+</body>
+</html>
