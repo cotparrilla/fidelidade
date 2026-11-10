@@ -18,12 +18,22 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
 import storage
+import auth
 import pkpass
 import apns
 import gwallet
 
 app = Flask(__name__)
 CORS(app)
+
+
+@app.before_request
+def _checar_acesso():
+    # senha/token: ver server/auth.py
+    bloqueio = auth.regra_de_acesso(request)
+    if bloqueio:
+        corpo, status = bloqueio
+        return jsonify(corpo), status
 
 PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "pass.com.backbonecervejaria.clube")
 
@@ -702,12 +712,13 @@ def log_apple():
 def login():
     dados = request.get_json() or {}
     garcom = storage.carregar_garcom(dados.get("id"))
-    if not garcom or garcom.get("senha") != dados.get("senha"):
+    if not garcom or not auth.senha_confere(garcom, dados.get("senha"), storage.salvar_garcom):
         return jsonify({"erro": "credenciais_invalidas"}), 401
     if not garcom.get("ativo", True):
         return jsonify({"erro": "garcom_inativo"}), 403
     return jsonify({
         "status": "ok", "garcom_id": garcom["id"], "nome": garcom["nome"],
+        "token": auth.emitir_token("garcom", garcom["id"]),
         "bar_id": garcom["bar_id"], "bar_nome": garcom.get("bar_nome", ""),
         "tutorial_visto": garcom.get("tutorial_visto", False),
         # liga o botao "Escanear prato" no scanner
@@ -756,7 +767,7 @@ def admin_criar_bar():
 
 @app.route("/admin/garcons")
 def admin_garcons():
-    return jsonify(storage.listar_garcons())
+    return jsonify([auth.sem_senha(g) for g in storage.listar_garcons()])
 
 
 @app.route("/admin/garcons", methods=["POST"])
@@ -774,8 +785,9 @@ def admin_criar_garcom():
         dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
 
     dados.setdefault("id", str(uuid.uuid4())[:8])
+    auth.preparar_senha(dados)
     storage.salvar_garcom(dados)
-    return jsonify({"status": "ok", "garcom": dados})
+    return jsonify({"status": "ok", "garcom": auth.sem_senha(dados)})
 
 
 @app.route("/admin/consumidores")
@@ -869,7 +881,7 @@ def login_gestor():
     """
     dados = request.get_json() or {}
     gestor = storage.carregar_gestor(dados.get("id"))
-    if not gestor or gestor.get("senha") != dados.get("senha"):
+    if not gestor or not auth.senha_confere(gestor, dados.get("senha"), storage.salvar_gestor):
         return jsonify({"erro": "credenciais_invalidas"}), 401
     if not gestor.get("ativo", True):
         return jsonify({"erro": "gestor_inativo"}), 403
@@ -884,6 +896,7 @@ def login_gestor():
         "status": "ok",
         "gestor_id": gestor["id"],
         "nome": gestor["nome"],
+        "token": auth.emitir_token("gestor", gestor["id"]),
         # se so tiver 1 bar, o front pode pular a tela de selecao e ir direto
         # "pratos": o bar aceita pratos (mostra o bloco de pratos nos colabs)
         "bares": [{"id": bid, "nome": bares_map.get(bid, bid), "pratos": pratos_map.get(bid, False)}
@@ -916,6 +929,7 @@ def admin_criar_gestor():
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("bar_ids", [])
     dados.setdefault("ativo", True)
+    auth.preparar_senha(dados)
     storage.salvar_gestor(dados)
 
     resposta = dict(dados)
@@ -942,11 +956,12 @@ def admin_apagar_gestor(gestor_id):
 def login_admin():
     dados = request.get_json() or {}
     admin = storage.carregar_admin(dados.get("id"))
-    if not admin or admin.get("senha") != dados.get("senha"):
+    if not admin or not auth.senha_confere(admin, dados.get("senha"), storage.salvar_admin):
         return jsonify({"erro": "credenciais_invalidas"}), 401
     if not admin.get("ativo", True):
         return jsonify({"erro": "admin_inativo"}), 403
-    return jsonify({"status": "ok", "admin_id": admin["id"], "nome": admin["nome"]})
+    return jsonify({"status": "ok", "admin_id": admin["id"], "nome": admin["nome"],
+                    "token": auth.emitir_token("admin", admin["id"])})
 
 
 @app.route("/admin/admins")
@@ -965,6 +980,7 @@ def admin_criar_admin():
         dados["senha"] = existente.get("senha")
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("ativo", True)
+    auth.preparar_senha(dados)
     storage.salvar_admin(dados)
     resposta = dict(dados)
     resposta.pop("senha", None)
@@ -991,12 +1007,13 @@ def admin_apagar_admin(admin_id):
 def login_colab():
     dados = request.get_json() or {}
     colab = storage.carregar_colab(dados.get("id"))
-    if not colab or colab.get("senha") != dados.get("senha"):
+    if not colab or not auth.senha_confere(colab, dados.get("senha"), storage.salvar_colab):
         return jsonify({"erro": "credenciais_invalidas"}), 401
     if not colab.get("ativo", True):
         return jsonify({"erro": "colab_inativo"}), 403
     return jsonify({
         "status": "ok", "colab_id": colab["id"], "nome": colab["nome"],
+        "token": auth.emitir_token("colab", colab["id"]),
         "bar_id": colab.get("bar_id", ""), "bar_nome": colab.get("bar_nome", ""),
     })
 
@@ -1090,6 +1107,7 @@ def admin_criar_colab():
 
     dados.setdefault("id", str(uuid.uuid4())[:8])
     dados.setdefault("ativo", True)
+    auth.preparar_senha(dados)
     storage.salvar_colab(dados)
     resposta = dict(dados)
     resposta.pop("senha", None)

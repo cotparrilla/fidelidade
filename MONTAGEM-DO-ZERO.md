@@ -68,6 +68,13 @@ os criou; com conta própria, o ativo acompanha quem for dono do restaurante.
    `APPLE_TEAM_ID`, `PASS_TYPE_ID`, `ORG_NAME` (nome do restaurante) e `WEB_SERVICE_URL`.
 6. O push do cartão usa esse mesmo certificado (`apns.py`), então não há outra chave.
 
+**Chave das sessões (`SECRET_KEY`):** crie no Cloud Run a variável `SECRET_KEY` com um
+texto aleatório longo. Gere no Cloud Shell do Google com
+`python3 -c "import secrets;print(secrets.token_urlsafe(48))"` e cole direto no Cloud Run,
+sem passar pela conversa.
+Ela assina o login das telas internas. Sem ela, todo mundo precisa entrar de novo a cada
+deploy. Trocar o valor desconecta todos os logins (útil se suspeitar de vazamento).
+
 Cuidados:
 - Certificado Apple vence (em geral 1 ano). Anotar a data e renovar antes.
 - Se o projeto for repassado, a transferência correta é a da **conta** (a Apple permite

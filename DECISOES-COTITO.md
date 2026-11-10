@@ -79,10 +79,13 @@ decisões. Não pergunte de novo o que está aqui.
 - Tom de voz: bem-humorado, objetivo, desejável e próximo; frases curtas.
 - Pendentes: logo e ícone do boi em vetor (SVG/PDF).
 
-## Segurança (obrigatório antes de cadastrar clientes de verdade)
+## Segurança
 
-- A base guarda senhas em texto puro e as rotas `/admin/*` e `/bar/*` não exigem token.
-  Antes de abrir ao público: senhas com hash e token de sessão exigido no servidor.
+- Feito: senhas com hash e token de sessão exigido no servidor (`server/auth.py`,
+  `auth.js`). Detalhes na seção 3 do `CLAUDE.md`. Variável nova no Cloud Run: `SECRET_KEY`.
+- Ainda aberto: `/consumidor/<telefone>` é público (as telas do cliente precisam dele) e
+  devolve nome e aniversário a quem souber o telefone. Rever quando adaptarmos as telas
+  do cliente.
 
 ## Contas
 

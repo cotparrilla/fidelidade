@@ -90,9 +90,15 @@ Programa de fidelidade 100% próprio (sem depender de plataformas de terceiros):
 ### Papéis e logins
 
 Garçom `/login`, gestor `/login-gestor`, admin `/login-admin`, colab `/login-colab`.
-Cada registro tem flag `ativo`, checada no login. **Aviso:** as senhas hoje são guardadas
-e comparadas em texto puro, e as rotas `/admin/*` e `/bar/*` não exigem token: a proteção
-é só o login da tela. Para uma versão nova, vale endurecer isso (hash de senha + token).
+Cada registro tem flag `ativo`. **Segurança (feita no Cotito, `server/auth.py`):** senhas
+guardadas com hash (as antigas em texto puro migram sozinhas no primeiro login); cada login
+devolve um `token` que as telas guardam junto do usuário (`bb_*` no localStorage) e que o
+`auth.js` envia em todo pedido. Um `before_request` aplica as regras: rotas públicas
+(cadastro, cartão, consumidor, Wallet, QR) liberadas; `/admin/*` só admin (exceto listar
+unidades e o gestor criar atendente/colab da própria unidade); `/bar/<id>/*` gestor da
+unidade (atendente só `atividade`); scans só em nome de quem está logado. **Rota nova que
+não estiver na lista de públicas exige admin**: ao criar rota pública, inclua em `auth.py`.
+Telas internas novas precisam do `<script src="auth.js" data-chaves="...">`.
 
 ## 4. Regras de negócio
 
@@ -141,7 +147,8 @@ iPhone. Concentre texto e elementos importantes no **centro** da arte.
 
 `APPLE_TEAM_ID`, `PASS_TYPE_ID`, `ORG_NAME`, `WEB_SERVICE_URL`, `APNS_HOST`,
 `APPLE_CERT_B64`, `APPLE_KEY_B64`, `APPLE_WWDR_B64`, `GOOGLE_WALLET_ISSUER_ID`,
-`GOOGLE_WALLET_KEY_B64`, `CARDAPIO_URL`, `PERFIL_URL`, `LOJA_URL`, `HERO_VERSAO`.
+`GOOGLE_WALLET_KEY_B64`, `CARDAPIO_URL`, `PERFIL_URL`, `LOJA_URL`, `HERO_VERSAO`,
+`SECRET_KEY` (assina os logins; sem ela todos saem a cada deploy).
 **Nunca** coloque chaves no repositório nem em conversa. Se uma chave vazar, revogue e
 crie outra.
 
