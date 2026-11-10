@@ -1,2 +1,4 @@
-# fidelidade
-Repositório destinado a funcionalidade do programa de fidelidade do Cotito
+# Sistema de fidelidade por cartao na Wallet
+
+Base: Clube Backbone, adaptada para restaurante.
+Leia CLAUDE.md, ADAPTACAO-RESTAURANTE.md e MONTAGEM-DO-ZERO.md.

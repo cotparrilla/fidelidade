@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Clube Backbone — Entrar</title>
+<style>
+  :root{
+    --preto:#000; --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2; --ambar:#E8A317;
+    --sb: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:var(--preto); color:var(--branco);
+    font:400 20px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; min-height:100dvh;
+  }
+  .cab{padding:calc(env(safe-area-inset-top,0px) + 18px) 22px 6px}
+  .cab img{height:40px}
+  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:30px 22px calc(30px + var(--sb))}
+  .login h1{font-size:28px; font-weight:800; line-height:1.15; margin-bottom:34px}
+  label{display:block; font-size:17px; font-weight:700; letter-spacing:.06em; margin:0 0 8px 2px}
+  input{
+    width:100%; background:var(--cinza-campo); border:2px solid var(--cinza-campo); color:#111;
+    font-size:26px; font-weight:600; padding:20px; border-radius:14px; margin-bottom:22px;
+  }
+  input::placeholder{color:#8A8880; font-weight:400}
+  input:focus{outline:none; border-color:var(--ambar)}
+  .btn{
+    width:100%; background:var(--branco); color:#000; border:none; border-radius:16px; padding:24px;
+    font-size:24px; font-weight:800;
+  }
+  .btn:active{transform:scale(.98)}
+  .btn[disabled]{opacity:.45}
+  .erro-msg{color:#FF6B6B; font-size:19px; font-weight:700; margin-bottom:16px; min-height:24px}
+</style>
+</head>
+<body>
+
+<div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
+<div class="login">
+  <h1>Faça seu login para entrar na ferramenta do Clube Backbone!</h1>
+  <label for="i-id">ID USUÁRIO</label>
+  <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ID usuário">
+  <label for="i-senha">SENHA</label>
+  <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
+  <div class="erro-msg" id="erro-login"></div>
+  <button class="btn" id="b-entrar">ENTRAR</button>
+</div>
+
+<script>
+const API = "https://backbone-650557630362.us-central1.run.app";
+const $ = id => document.getElementById(id);
+
+$("b-entrar").onclick = async () => {
+  const id = $("i-id").value.trim();
+  const senha = $("i-senha").value;
+  const erro = $("erro-login");
+  erro.textContent = "";
+  if(!id || !senha){ erro.textContent = "Preencha o código e a senha."; return; }
+
+  $("b-entrar").disabled = true;
+  $("b-entrar").textContent = "ENTRANDO…";
+  try{
+    // tenta como garcom primeiro
+    const rg = await fetch(API + "/login", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(rg.ok){
+      const d = await rg.json();
+      localStorage.setItem("bb_garcom", JSON.stringify(d));
+      location.href = "scanner.html";
+      return;
+    }
+    if(rg.status !== 401 && rg.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
+    // nao era garcom (ou senha errada) — tenta como gestor
+    const rt = await fetch(API + "/login-gestor", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(rt.ok){
+      const d = await rt.json();
+      if(!d.bares || !d.bares.length){
+        erro.textContent = "Seu usuário não tem nenhum bar vinculado. Fale com a Backbone.";
+        return;
+      }
+      localStorage.setItem("bb_gestor", JSON.stringify(d));
+      location.href = "gestor.html";
+      return;
+    }
+    if(rt.status !== 401 && rt.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
+    // nao era gestor (ou senha errada) — tenta como admin
+    const ra = await fetch(API + "/login-admin", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(ra.ok){
+      const d = await ra.json();
+      localStorage.setItem("bb_admin", JSON.stringify(d));
+      location.href = "escolha.html";
+      return;
+    }
+    if(ra.status !== 401 && ra.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
+    // nao era admin (ou senha errada) — tenta como colab
+    const rl = await fetch(API + "/login-colab", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({id, senha})
+    });
+    if(rl.ok){
+      const d = await rl.json();
+      localStorage.setItem("bb_colab", JSON.stringify(d));
+      location.href = "colab.html";
+      return;
+    }
+    if(rl.status !== 401 && rl.status !== 403){
+      erro.textContent = "O servidor demorou para responder (pode estar acordando). Tente de novo em alguns segundos.";
+      return;
+    }
+
+    erro.textContent = "Código ou senha incorretos.";
+  }catch(e){
+    erro.textContent = "Sem conexão. Tente de novo.";
+  }finally{
+    $("b-entrar").disabled = false;
+    $("b-entrar").textContent = "ENTRAR";
+  }
+};
+
+$("i-senha").addEventListener("keydown", ev => { if(ev.key === "Enter") $("b-entrar").click(); });
+</script>
+</body>
+</html>

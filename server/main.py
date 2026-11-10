@@ -1,0 +1,1994 @@
+# Backbone Beer - Clube Backbone - v3
+#
+# Mudancas em relacao a v2:
+#   - /scan unificado: o garcom faz UM gesto. Se ha recompensa, resgata.
+#     Se nao ha, pontua. A cartela SO zera no resgate.
+#   - meta e temporada congeladas por ciclo
+#   - member gets member: padrinho / indicados
+#   - web service da Apple (4 endpoints) + push via APNs
+#   - /cartao/<telefone>: entrega o .pkpass
+
+import os
+import json
+import uuid
+import secrets
+import re
+from datetime import datetime, timezone
+from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
+
+import storage
+import pkpass
+import apns
+import gwallet
+
+app = Flask(__name__)
+CORS(app)
+
+PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "pass.com.backbonecervejaria.clube")
+
+
+def agora():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def so_digitos(s):
+    return "".join(c for c in (s or "") if c.isdigit())
+
+
+def _disponiveis(c):
+    return [r for r in c.get("recompensas", []) if not r.get("resgatada")]
+
+
+def _garcom_pertence_bar(garcom, bar):
+    return garcom.get("bar_id") == bar
+
+
+def _notificar(consumidor, aviso):
+    """Grava o aviso no consumidor e dispara o push (Apple + Google)."""
+    consumidor["aviso"] = aviso
+    consumidor["atualizado_em"] = agora()
+    storage.salvar_consumidor(consumidor)
+
+    # Google Wallet: atualizar o objeto e o "push" do Android
+    try:
+        gwallet.atualizar_objeto(consumidor)
+    except Exception as e:
+        app.logger.warning("gwallet falhou: %s", e)
+
+    try:
+        return apns.enviar_push(consumidor["telefone"])
+    except Exception as e:
+        app.logger.warning("push falhou: %s", e)
+        return {"enviados": 0, "erro": str(e)}
+
+
+# ══════════════════════════════════════════════════════════════
+#  CADASTRO
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/cadastro/<bar>/<telefone>/<nome>/<dia>/<mes>/<time>")
+def cadastro(bar, telefone, nome, dia, mes, time):
+    from urllib.parse import unquote
+    nome = unquote(nome)
+    bar = unquote(bar)
+    time = unquote(time)
+    telefone = so_digitos(telefone)
+
+    # indicador vem por query string: ?ind=5521999887766
+    indicador_tel = so_digitos(request.args.get("padrinho", ""))
+    palavra_chave = (request.args.get("palavra", "") or "").strip()
+    cep = so_digitos(request.args.get("cep", ""))[:8]
+    if indicador_tel == telefone:
+        indicador_tel = ""  # auto-indicacao bloqueada
+
+    # colab que originou este cadastro (QR do parceiro externo) —
+    # so grava se o id realmente existe, pra nao guardar lixo
+    colab_id = (request.args.get("colab", "") or "").strip()
+    colab = storage.carregar_colab(colab_id) if colab_id else None
+    if colab_id and not colab:
+        colab_id = ""
+
+    # TRAVA ANTIFRAUDE: lista fria POR BAR (numeros vetados pelo dono)
+    for b in storage.carregar_bloqueados():
+        if b["telefone"] == telefone and (b["bar"] == "*" or b["bar"] == bar):
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Cadastro não disponível para este telefone."}), 403
+
+    # TRAVA ANTIFRAUDE: funcionario (garcom) nao pode ser associado
+    for _g in storage.listar_garcons():
+        if _g.get("telefone") and so_digitos(_g["telefone"]) == telefone:
+            return jsonify({"status": "nao_permitido",
+                            "motivo": "Telefone vinculado a um funcionário."}), 403
+
+    existente = storage.carregar_consumidor(telefone)
+    if existente:
+        return jsonify({"status": "ja_cadastrado", "consumidor": existente})
+
+    config = storage.carregar_config()
+
+    indicador = storage.carregar_consumidor(indicador_tel) if indicador_tel else None
+
+    consumidor = {
+        "telefone": telefone,
+        "nome": nome,
+        "indicador": bar,
+        "colab": colab_id or None,
+        "palavra_chave": palavra_chave,
+        "cep": cep,
+        "nascimento_dia": dia,
+        "nascimento_mes": mes,
+        "time": time,
+
+        "punches": 0,
+        "meta": int(config["punches_para_recompensa"]),        # CONGELADA
+        "temporada": config["temporada_vigente"],              # CONGELADA
+
+        "padrinho": indicador["telefone"] if indicador else None,
+        "indicados": [],
+
+        "recompensas": [
+            {"tipo": "boas_vindas", "gerada_em": agora(), "resgatada": False}
+        ],
+        "recompensas_total": 0,
+        "ciclos_completos": 0,
+        "temporadas_completas": [],
+
+        "auth_token": secrets.token_hex(20),   # unico por consumidor
+        "aviso": "Bem-vindo ao Clube Backbone! Seu primeiro chopp é por nossa conta.",
+        "ultimo_punch": None,
+        "cadastro_em": agora(),
+        "atualizado_em": agora(),
+        "ativo": True,
+    }
+    storage.salvar_consumidor(consumidor)
+
+    if indicador:
+        indicador.setdefault("indicados", [])
+        if telefone not in indicador["indicados"]:
+            indicador["indicados"].append(telefone)
+        _notificar(indicador, f"{nome} entrou no Clube pelo seu convite. Quando fechar a cartela, você ganha um ponto.")
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "cadastro", "telefone": telefone,
+        "bar": bar, "garcom_id": None, "padrinho": consumidor["padrinho"],
+        "colab": colab_id or None,
+        "data": agora(),
+    })
+
+    return jsonify({"status": "cadastrado", "consumidor": consumidor})
+
+
+@app.route("/consumidor/<telefone>")
+def consultar_consumidor(telefone):
+    c = storage.carregar_consumidor(so_digitos(telefone))
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    c["punches_para_recompensa"] = c.get("meta", 10)
+    c["recompensas_disponiveis"] = len(_disponiveis(c))
+    c["total_indicados"] = len(c.get("indicados", []))
+    # colab de origem (para a tela de PRATO do scanner mostrar quem credita)
+    c["colab_nome"] = None
+    c["colab_bar_id"] = None
+    if c.get("colab"):
+        col = storage.carregar_colab(c["colab"])
+        if col:
+            c["colab_nome"] = col.get("nome", col["id"])
+            c["colab_bar_id"] = col.get("bar_id", "")
+    return jsonify(c)
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCAN - o gesto unico do garcom
+# ══════════════════════════════════════════════════════════════
+
+def _creditar_indicador(consumidor):
+    """Chamado quando o consumidor FECHA a cartela. Credita 1 ponto ao indicador."""
+    tel_ind = consumidor.get("padrinho")
+    if not tel_ind:
+        return
+
+    ind = storage.carregar_consumidor(tel_ind)
+    if not ind or not ind.get("ativo", True):
+        return
+
+    # cartela cheia -> ponto DESCARTADO
+    if _disponiveis(ind):
+        _notificar(ind, "Um indicado seu fechou a meta, mas sua cartela está cheia. "
+                        "Venha resgatar seu chopp para voltar a pontuar.")
+        storage.salvar_evento({
+            "id": str(uuid.uuid4()), "tipo": "ponto_indicacao_descartado",
+            "telefone": tel_ind, "origem": consumidor["telefone"], "data": agora(),
+        })
+        return
+
+    meta_ind = int(ind.get("meta", 10))
+    ind["punches"] = int(ind.get("punches", 0)) + 1
+
+    if ind["punches"] >= meta_ind:
+        ind["recompensas"].append({"tipo": "punch", "gerada_em": agora(), "resgatada": False})
+        ind["recompensas_total"] = ind.get("recompensas_total", 0) + 1
+        aviso = ("Um indicado seu fechou a meta — e fechou a sua cartela! "
+                 "Chame o atendente e resgate seu chopp.")
+    else:
+        faltam = meta_ind - ind["punches"]
+        aviso = f"Parabéns! Seu indicado fechou a meta e você ganhou um ponto. Faltam {faltam} para o seu chopp."
+
+    _notificar(ind, aviso)
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "ponto_indicacao",
+        "telefone": tel_ind, "origem": consumidor["telefone"], "data": agora(),
+    })
+
+
+@app.route("/scan", methods=["POST"])
+def scan():
+    dados = request.get_json() or {}
+    telefone = so_digitos(dados.get("telefone"))
+    garcom_id = dados.get("garcom_id")
+    bar = dados.get("bar")
+
+    if not telefone or not garcom_id or not bar:
+        return jsonify({"erro": "dados_incompletos"}), 400
+
+    consumidor = storage.carregar_consumidor(telefone)
+    if not consumidor:
+        return jsonify({"erro": "consumidor_nao_encontrado"}), 404
+
+    # quem esta escaneando pode ser um garcom, um gestor, OU um admin
+    # (admin e gestor entram no scanner com a propria credencial, sem
+    # precisar de um cadastro de garcom a parte)
+    garcom = storage.carregar_garcom(garcom_id)
+    if garcom:
+        if not _garcom_pertence_bar(garcom, bar):
+            return jsonify({"erro": "bar_diferente"}), 403
+    else:
+        gestor = storage.carregar_gestor(garcom_id)
+        if gestor:
+            if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
+                return jsonify({"erro": "bar_diferente"}), 403
+        else:
+            admin = storage.carregar_admin(garcom_id)
+            if not admin:
+                return jsonify({"erro": "garcom_nao_encontrado"}), 404
+            # admin pode escanear em qualquer bar, sem checagem adicional
+
+    config = storage.carregar_config()
+    consumidor.setdefault("recompensas", [])
+    consumidor.setdefault("meta", int(config["punches_para_recompensa"]))
+    consumidor.setdefault("temporada", config["temporada_vigente"])
+
+    # contador vitalicio de chopps consumidos (nunca zera, ao contrario
+    # de "punches" que reinicia a cada cartela). Base para o marco das
+    # arvores plantadas a cada 100 chopps.
+    consumidor["chopps_totais"] = consumidor.get("chopps_totais", 0) + 1
+    marco_arvore = None
+    if consumidor["chopps_totais"] % 100 == 0:
+        marco_arvore = consumidor["chopps_totais"]
+        consumidor.setdefault("arvores", []).append({
+            "marco": marco_arvore, "detectada_em": agora(),
+            "plantada": False, "plantada_em": None,
+        })
+
+    pendentes = _disponiveis(consumidor)
+
+    # ─────────── CAMINHO 1: tem recompensa -> RESGATA ───────────
+    if pendentes:
+        pendentes.sort(key=lambda r: 0 if r.get("tipo") == "boas_vindas" else 1)
+        recompensa = pendentes[0]
+
+        for r in consumidor["recompensas"]:
+            if r is recompensa:
+                r["resgatada"] = True
+                r["resgatada_em"] = agora()
+                r["resgatada_bar"] = bar
+                r["resgatada_garcom"] = garcom_id
+                break
+
+        tipo = recompensa.get("tipo")
+
+        if tipo == "punch":
+            # fecha o ciclo: nova cartela, nova meta, nova temporada
+            temporada_antiga = consumidor.get("temporada")
+            consumidor["punches"] = 0
+            consumidor["meta"] = int(config["punches_para_recompensa"])
+            consumidor["temporada"] = config["temporada_vigente"]
+            consumidor["ciclos_completos"] = consumidor.get("ciclos_completos", 0) + 1
+            consumidor.setdefault("temporadas_completas", [])
+            if temporada_antiga and temporada_antiga not in consumidor["temporadas_completas"]:
+                consumidor["temporadas_completas"].append(temporada_antiga)
+            aviso = f"Chopp resgatado! Nova cartela aberta — temporada {consumidor['temporada']}."
+        else:
+            # boas-vindas: NAO mexe na cartela nem gera punch
+            aviso = "Chopp de boas-vindas resgatado! Agora é só juntar pontos."
+
+        if marco_arvore:
+            aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
+                      f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
+
+        push = _notificar(consumidor, aviso)
+        storage.salvar_evento({
+            "id": str(uuid.uuid4()), "tipo": "resgate", "tipo_recompensa": tipo,
+            "telefone": telefone, "bar": bar, "garcom_id": garcom_id, "data": agora(),
+        })
+
+        return jsonify({
+            "status": "ok", "acao": "resgate", "tipo_resgatado": tipo,
+            "nome": consumidor["nome"],
+            "punches": consumidor["punches"], "meta": consumidor["meta"],
+            "recompensas_disponiveis": len(_disponiveis(consumidor)),
+            "mensagem_garcom": f"RESGATE — entregue 1 chopp grátis para {consumidor['nome']}.",
+            "push": push,
+        })
+
+    # ─────────── CAMINHO 2: sem recompensa -> PONTUA ───────────
+    meta = int(consumidor["meta"])
+    consumidor["punches"] = int(consumidor.get("punches", 0)) + 1
+    consumidor["ultimo_punch"] = agora()
+
+    fechou = consumidor["punches"] >= meta
+
+    if fechou:
+        # a cartela NAO zera aqui. Ela trava cheia ate o resgate.
+        consumidor["punches"] = meta
+        consumidor["recompensas"].append({"tipo": "punch", "gerada_em": agora(), "resgatada": False})
+        consumidor["recompensas_total"] = consumidor.get("recompensas_total", 0) + 1
+        aviso = ("Cartela fechada! Seu próximo chopp é por nossa conta. "
+                 "Chame o atendente para resgatar.")
+    else:
+        faltam = meta - consumidor["punches"]
+        aviso = f"Chopp registrado! Faltam {faltam} para o seu chopp grátis."
+
+    if marco_arvore:
+        aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
+                  f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
+
+    push = _notificar(consumidor, aviso)
+
+    if fechou:
+        _creditar_indicador(consumidor)
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "punch", "telefone": telefone, "bar": bar,
+        "garcom_id": garcom_id, "recompensa_gerada": fechou, "data": agora(),
+    })
+
+    return jsonify({
+        "status": "ok", "acao": "punch",
+        "nome": consumidor["nome"],
+        "punches": consumidor["punches"], "meta": meta,
+        "recompensa_gerada": fechou,
+        "recompensas_disponiveis": len(_disponiveis(consumidor)),
+        "mensagem_garcom": (
+            f"CARTELA FECHADA — {consumidor['nome']} tem 1 chopp grátis. Avise o cliente."
+            if fechou else
+            f"Ponto registrado — {consumidor['nome']}: {consumidor['punches']} de {meta}."
+        ),
+        "push": push,
+    })
+
+
+# rotas antigas continuam funcionando (o scanner atual ainda as usa)
+@app.route("/punch", methods=["POST"])
+def punch_legado():
+    return scan()
+
+
+@app.route("/resgatar", methods=["POST"])
+def resgatar_legado():
+    return scan()
+
+
+# ══════════════════════════════════════════════════════════════
+#  PRATO - remuneracao do colab por refeicoes dos indicados
+# ══════════════════════════════════════════════════════════════
+#
+# Regra unica (nov/2026): num bar com "aceita pratos" ligado, o garcom
+# registra um PRATO no QR do cliente. Se o cliente foi indicado por um
+# colab DESSE bar, o colab ganha +1 prato. Em PRATOS_PARA_PREMIO o colab
+# tem direito a 1 prato executivo; para receber, o garcom escaneia o QR
+# de indicacao do colab (/c/<id>). Enquanto esta em 10 sem resgatar,
+# novos pratos nao contam (mesma regra da cartela de chopp cheia).
+# O cliente comum nao ganha nem perde nada com o prato (pontos: 0) — o
+# evento ja nasce com item + pontos para a futura conta corrente.
+
+PRATOS_PARA_PREMIO = 10
+
+
+def _validar_escaneador(garcom_id, bar):
+    """
+    Mesma checagem do /scan: quem escaneia pode ser garcom (do bar),
+    gestor (com o bar na lista) ou admin (qualquer bar).
+    Devolve (erro, status) ou (None, None).
+    """
+    garcom = storage.carregar_garcom(garcom_id)
+    if garcom:
+        if not _garcom_pertence_bar(garcom, bar):
+            return "bar_diferente", 403
+        return None, None
+    gestor = storage.carregar_gestor(garcom_id)
+    if gestor:
+        if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
+            return "bar_diferente", 403
+        return None, None
+    if storage.carregar_admin(garcom_id):
+        return None, None
+    return "garcom_nao_encontrado", 404
+
+
+def _bar_aceita_pratos(bar_id):
+    b = storage.carregar_bar(bar_id) if bar_id else None
+    return bool(b and b.get("pratos"))
+
+
+def _pratos_do_colab(colab):
+    """Bloco padrao de contagem de pratos de um colab (para scanner, gestor, painel)."""
+    ciclo = int(colab.get("pratos_ciclo", 0))
+    return {
+        "pratos_ciclo": ciclo,
+        "pratos_para_premio": PRATOS_PARA_PREMIO,
+        "pratos_totais": int(colab.get("pratos_totais", 0)),
+        "pratos_entregues": int(colab.get("pratos_entregues", 0)),
+        "prato_liberado": ciclo >= PRATOS_PARA_PREMIO,
+    }
+
+
+@app.route("/colab/<colab_id>/pratos")
+def colab_pratos(colab_id):
+    """
+    O scanner chama ao ler o QR de indicacao de um colab (/c/<id>):
+    monta a tela "faltam N" ou "RESGATE · PRATO".
+    """
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return jsonify({"erro": "colab_nao_encontrado"}), 404
+    bar = storage.carregar_bar(colab.get("bar_id", "")) or {}
+    resp = {
+        "colab_id": colab["id"], "nome": colab.get("nome", colab["id"]),
+        "bar_id": colab.get("bar_id", ""), "bar_nome": bar.get("nome", colab.get("bar_nome", "")),
+        "bar_aceita_pratos": bool(bar.get("pratos")),
+        "ativo": colab.get("ativo", True),
+    }
+    resp.update(_pratos_do_colab(colab))
+    return jsonify(resp)
+
+
+@app.route("/scan-prato", methods=["POST"])
+def scan_prato():
+    """
+    Registra um PRATO consumido pelo cliente (QR do cartao), em bar que
+    aceita pratos. Separado do /scan de proposito: nunca cai no caminho
+    de resgate de chopp, e nao mexe em punches nem em chopps_totais.
+    """
+    dados = request.get_json() or {}
+    telefone = so_digitos(dados.get("telefone"))
+    garcom_id = dados.get("garcom_id")
+    bar = dados.get("bar")
+
+    if not telefone or not garcom_id or not bar:
+        return jsonify({"erro": "dados_incompletos"}), 400
+
+    erro, status = _validar_escaneador(garcom_id, bar)
+    if erro:
+        return jsonify({"erro": erro}), status
+
+    if not _bar_aceita_pratos(bar):
+        return jsonify({"erro": "bar_nao_aceita_pratos"}), 403
+
+    consumidor = storage.carregar_consumidor(telefone)
+    if not consumidor:
+        return jsonify({"erro": "consumidor_nao_encontrado"}), 404
+
+    # colab de origem deste cliente, se for colab DESTE bar
+    colab = None
+    colab_id = consumidor.get("colab")
+    if colab_id:
+        c = storage.carregar_colab(colab_id)
+        if c and c.get("bar_id") == bar and c.get("ativo", True):
+            colab = c
+
+    creditado = False
+    if colab:
+        ciclo = int(colab.get("pratos_ciclo", 0))
+        if ciclo < PRATOS_PARA_PREMIO:
+            colab["pratos_ciclo"] = ciclo + 1
+            colab["pratos_totais"] = int(colab.get("pratos_totais", 0)) + 1
+            colab["ultimo_prato"] = agora()
+            storage.salvar_colab(colab)
+            creditado = True
+        # ciclo cheio (prato liberado e nao resgatado): o prato NAO conta,
+        # igual a cartela de chopp cheia
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "prato", "item": "prato", "pontos": 0,
+        "telefone": telefone, "bar": bar, "garcom_id": garcom_id,
+        "colab": colab["id"] if colab else None, "colab_credito": creditado,
+        "data": agora(),
+    })
+
+    resp = {
+        "status": "ok", "acao": "prato",
+        "nome": consumidor["nome"],
+        "colab": None,
+    }
+    if colab:
+        info = _pratos_do_colab(colab)
+        info.update({"colab_id": colab["id"], "nome": colab.get("nome", colab["id"]), "creditado": creditado})
+        resp["colab"] = info
+        if info["prato_liberado"]:
+            resp["mensagem_garcom"] = (
+                f"Prato registrado — {consumidor['nome']}. "
+                f"{colab.get('nome', colab['id'])} fechou {PRATOS_PARA_PREMIO} pratos: tem 1 prato grátis a receber."
+            )
+        else:
+            resp["mensagem_garcom"] = (
+                f"Prato registrado — {consumidor['nome']}. "
+                f"{colab.get('nome', colab['id'])}: {info['pratos_ciclo']} de {PRATOS_PARA_PREMIO}."
+            )
+    else:
+        resp["mensagem_garcom"] = f"Prato registrado — {consumidor['nome']} (sem colab)."
+    return jsonify(resp)
+
+
+@app.route("/resgatar-prato", methods=["POST"])
+def resgatar_prato():
+    """
+    O garcom escaneou o QR de indicacao do colab e o colab tem direito
+    ao prato: entrega, zera o ciclo, conta 1 entregue.
+    """
+    dados = request.get_json() or {}
+    colab_id = (dados.get("colab_id") or "").strip()
+    garcom_id = dados.get("garcom_id")
+    bar = dados.get("bar")
+
+    if not colab_id or not garcom_id or not bar:
+        return jsonify({"erro": "dados_incompletos"}), 400
+
+    erro, status = _validar_escaneador(garcom_id, bar)
+    if erro:
+        return jsonify({"erro": erro}), status
+
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return jsonify({"erro": "colab_nao_encontrado"}), 404
+    if colab.get("bar_id") != bar:
+        return jsonify({"erro": "colab_de_outro_bar"}), 403
+    if int(colab.get("pratos_ciclo", 0)) < PRATOS_PARA_PREMIO:
+        return jsonify({"erro": "prato_nao_liberado", **_pratos_do_colab(colab)}), 409
+
+    colab["pratos_ciclo"] = 0
+    colab["pratos_entregues"] = int(colab.get("pratos_entregues", 0)) + 1
+    colab["ultimo_resgate_prato"] = agora()
+    storage.salvar_colab(colab)
+
+    storage.salvar_evento({
+        "id": str(uuid.uuid4()), "tipo": "resgate_prato",
+        "colab": colab["id"], "bar": bar, "garcom_id": garcom_id, "data": agora(),
+    })
+
+    resp = {
+        "status": "ok", "acao": "resgate_prato",
+        "colab_id": colab["id"], "nome": colab.get("nome", colab["id"]),
+        "mensagem_garcom": f"RESGATE — entregue 1 prato executivo grátis para {colab.get('nome', colab['id'])}.",
+    }
+    resp.update(_pratos_do_colab(colab))
+    return jsonify(resp)
+
+
+# ══════════════════════════════════════════════════════════════
+#  CARTAO .pkpass
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/cartao/<telefone>")
+def cartao(telefone):
+    telefone = so_digitos(telefone)
+    c = storage.carregar_consumidor(telefone)
+    if not c:
+        return jsonify({"erro": "consumidor_nao_encontrado"}), 404
+
+    if not c.get("auth_token"):
+        c["auth_token"] = secrets.token_hex(20)
+        storage.salvar_consumidor(c)
+
+    try:
+        dados = pkpass.gerar_pkpass(c, aviso=c.get("aviso"))
+    except Exception as e:
+        app.logger.exception("falha ao gerar pkpass")
+        return jsonify({"erro": "falha_ao_gerar_cartao", "detalhe": str(e)}), 500
+
+    return Response(dados, mimetype="application/vnd.apple.pkpass", headers={
+        "Content-Disposition": f'attachment; filename="clube-backbone-{telefone}.pkpass"',
+        "Cache-Control": "no-store",
+    })
+
+
+# ══════════════════════════════════════════════════════════════
+#  WEB SERVICE DA APPLE — as 4 rotas exigidas
+#  Os caminhos e nomes sao definidos pela Apple. Nao mudar.
+# ══════════════════════════════════════════════════════════════
+
+def _autorizado(consumidor):
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("ApplePass "):
+        return False
+    return auth[10:].strip() == consumidor.get("auth_token")
+
+
+@app.route("/v1/devices/<device_id>/registrations/<pass_type_id>/<serial>", methods=["POST"])
+def registrar_dispositivo(device_id, pass_type_id, serial):
+    """O iPhone chama isto ao instalar o cartao, entregando o pushToken."""
+    c = storage.carregar_consumidor(so_digitos(serial))
+    if not c:
+        return "", 404
+    if not _autorizado(c):
+        return "", 401
+
+    push_token = (request.get_json(silent=True) or {}).get("pushToken")
+    if not push_token:
+        return "", 400
+
+    registro = storage.carregar_registro(serial) or {}
+    ja_existia = device_id in registro.get("dispositivos", {})
+
+    storage.salvar_registro(serial, device_id, push_token)
+    # 201 = registro novo | 200 = ja estava registrado
+    return "", (200 if ja_existia else 201)
+
+
+@app.route("/v1/devices/<device_id>/registrations/<pass_type_id>", methods=["GET"])
+def listar_passes_atualizados(device_id, pass_type_id):
+    """O iPhone pergunta: o que mudou desde X?"""
+    desde = request.args.get("passesUpdatedSince")
+    seriais = storage.seriais_do_dispositivo(device_id)
+    if not seriais:
+        return "", 204
+
+    alterados, ultimo = [], desde or ""
+    for s in seriais:
+        c = storage.carregar_consumidor(s)
+        if not c:
+            continue
+        atualizado = c.get("atualizado_em", "")
+        if not desde or atualizado > desde:
+            alterados.append(s)
+        if atualizado > ultimo:
+            ultimo = atualizado
+
+    if not alterados:
+        return "", 204
+
+    return jsonify({"serialNumbers": alterados, "lastUpdated": ultimo})
+
+
+@app.route("/v1/passes/<pass_type_id>/<serial>", methods=["GET"])
+def baixar_pass_atualizado(pass_type_id, serial):
+    """O iPhone acordou com o push e vem buscar o .pkpass novo."""
+    c = storage.carregar_consumidor(so_digitos(serial))
+    if not c:
+        return "", 404
+    if not _autorizado(c):
+        return "", 401
+
+    dados = pkpass.gerar_pkpass(c, aviso=c.get("aviso"))
+    return Response(dados, mimetype="application/vnd.apple.pkpass", headers={
+        "Last-Modified": c.get("atualizado_em", ""),
+    })
+
+
+@app.route("/v1/devices/<device_id>/registrations/<pass_type_id>/<serial>", methods=["DELETE"])
+def remover_dispositivo(device_id, pass_type_id, serial):
+    """O usuario apagou o cartao da Wallet."""
+    c = storage.carregar_consumidor(so_digitos(serial))
+    if not c:
+        return "", 404
+    if not _autorizado(c):
+        return "", 401
+    storage.remover_registro(device_id, serial)
+    return "", 200
+
+
+@app.route("/v1/log", methods=["POST"])
+def log_apple():
+    """A Apple manda os erros dela para ca. Otimo para depurar."""
+    app.logger.warning("APPLE LOG: %s", json.dumps(request.get_json(silent=True) or {}))
+    return "", 200
+
+
+# ══════════════════════════════════════════════════════════════
+#  ADMIN
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login", methods=["POST"])
+def login():
+    dados = request.get_json() or {}
+    garcom = storage.carregar_garcom(dados.get("id"))
+    if not garcom or garcom.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not garcom.get("ativo", True):
+        return jsonify({"erro": "garcom_inativo"}), 403
+    return jsonify({
+        "status": "ok", "garcom_id": garcom["id"], "nome": garcom["nome"],
+        "bar_id": garcom["bar_id"], "bar_nome": garcom.get("bar_nome", ""),
+        "tutorial_visto": garcom.get("tutorial_visto", False),
+        # liga o botao "Escanear prato" no scanner
+        "pratos": _bar_aceita_pratos(garcom["bar_id"]),
+    })
+
+
+@app.route("/garcom/<garcom_id>/tutorial-visto", methods=["POST"])
+def marcar_tutorial_visto(garcom_id):
+    """
+    Marca (ou desmarca, via {"visto": false} no corpo) se o garcom ja viu
+    o tutorial de 'Como funciona'. O reset e usado pelo gestor quando o
+    garcom troca de aparelho ou precisa rever o tutorial.
+    So mexe nesse campo — preserva todo o resto do cadastro
+    (senha, telefone, bar, etc.), ao contrario de reusar o POST de
+    criacao/edicao que sobrescreveria o registro inteiro.
+    """
+    garcom = storage.carregar_garcom(garcom_id)
+    if not garcom:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    dados = request.get_json(silent=True) or {}
+    garcom["tutorial_visto"] = bool(dados.get("visto", True))
+    storage.salvar_garcom(garcom)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/admin/bares")
+def admin_bares():
+    return jsonify(storage.listar_bares())
+
+
+@app.route("/admin/bares", methods=["POST"])
+def admin_criar_bar():
+    dados = request.get_json()
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    # "pratos": o bar aceita o modo PRATO no scanner (colabs ganham prato
+    # executivo a cada PRATOS_PARA_PREMIO pratos dos indicados)
+    existente = storage.carregar_bar(dados["id"])
+    if "pratos" in dados:
+        dados["pratos"] = bool(dados["pratos"])
+    elif existente:
+        dados["pratos"] = bool(existente.get("pratos"))
+    storage.salvar_bar(dados)
+    return jsonify({"status": "ok", "bar": dados})
+
+
+@app.route("/admin/garcons")
+def admin_garcons():
+    return jsonify(storage.listar_garcons())
+
+
+@app.route("/admin/garcons", methods=["POST"])
+def admin_criar_garcom():
+    dados = request.get_json()
+    tel_g = so_digitos(dados.get("telefone", ""))
+    if tel_g and storage.carregar_consumidor(tel_g):
+        return jsonify({"erro": "telefone_de_associado",
+                        "detalhe": "Este telefone pertence a um associado. "
+                                   "Funcionário não pode ser associado — apague o cadastro dele antes."}), 409
+    dados["telefone"] = tel_g
+
+    existente = storage.carregar_garcom(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    storage.salvar_garcom(dados)
+    return jsonify({"status": "ok", "garcom": dados})
+
+
+@app.route("/admin/consumidores")
+def admin_consumidores():
+    bar_filtro = request.args.get("bar")
+    todos = storage.listar_consumidores()
+    if bar_filtro:
+        todos = [c for c in todos if c.get("indicador") == bar_filtro]
+
+    # dias distintos que cada telefone teve o QR escaneado (punch ou
+    # resgate) — cadastro nao conta, e o mesmo dia com varios scans conta 1
+    dias_por_telefone = {}
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") not in ("punch", "resgate"):
+            continue
+        tel = ev.get("telefone")
+        data = (ev.get("data") or "")[:10]  # YYYY-MM-DD
+        if not tel or not data:
+            continue
+        dias_por_telefone.setdefault(tel, set()).add(data)
+
+    for c in todos:
+        c["recompensas_disponiveis"] = len(_disponiveis(c))
+        c["total_indicados"] = len(c.get("indicados", []))
+        c["dias_visitados"] = len(dias_por_telefone.get(c.get("telefone"), ()))
+        c.pop("auth_token", None)   # nunca expor
+    return jsonify(todos)
+
+
+@app.route("/admin/config")
+def admin_config():
+    return jsonify(storage.carregar_config())
+
+
+@app.route("/admin/config", methods=["POST"])
+def admin_salvar_config():
+    storage.salvar_config(request.get_json())
+    return jsonify({"status": "ok"})
+
+
+@app.route("/admin/push/<telefone>", methods=["POST"])
+def admin_push_manual(telefone):
+    """Dispara um push avulso. Base para campanhas segmentadas."""
+    c = storage.carregar_consumidor(so_digitos(telefone))
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    texto = (request.get_json() or {}).get("texto", "")
+    if not texto:
+        return jsonify({"erro": "texto_vazio"}), 400
+    return jsonify(_notificar(c, texto))
+
+
+@app.route("/admin/consumidores/<telefone>", methods=["DELETE"])
+def admin_apagar_consumidor(telefone):
+    telefone = so_digitos(telefone)
+    c = storage.carregar_consumidor(telefone)
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_consumidor(telefone)
+    return jsonify({"status": "apagado", "telefone": telefone})
+
+
+@app.route("/admin/bares/<bar_id>", methods=["DELETE"])
+def admin_apagar_bar(bar_id):
+    b = storage.carregar_bar(bar_id)
+    if not b:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_bar(bar_id)
+    return jsonify({"status": "apagado", "id": bar_id})
+
+
+@app.route("/admin/garcons/<garcom_id>", methods=["DELETE"])
+def admin_apagar_garcom(garcom_id):
+    g = storage.carregar_garcom(garcom_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_garcom(garcom_id)
+    return jsonify({"status": "apagado", "id": garcom_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#  GESTORES — login e cadastro do dono/gerente do bar
+#  (painel Historico / Atual / Atividade / Garcons)
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-gestor", methods=["POST"])
+def login_gestor():
+    """
+    Login do painel do gestor. Separado do /login do garcom porque o
+    papel e os dados devolvidos sao diferentes (bar_ids em vez de um bar so).
+    """
+    dados = request.get_json() or {}
+    gestor = storage.carregar_gestor(dados.get("id"))
+    if not gestor or gestor.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not gestor.get("ativo", True):
+        return jsonify({"erro": "gestor_inativo"}), 403
+
+    bar_ids = gestor.get("bar_ids", [])
+    todos_bares = storage.listar_bares()
+    bares_map = {b["id"]: b.get("nome", b["id"]) for b in todos_bares}
+    bares_map["*"] = "Todos os bares"
+    pratos_map = {b["id"]: bool(b.get("pratos")) for b in todos_bares}
+
+    return jsonify({
+        "status": "ok",
+        "gestor_id": gestor["id"],
+        "nome": gestor["nome"],
+        # se so tiver 1 bar, o front pode pular a tela de selecao e ir direto
+        # "pratos": o bar aceita pratos (mostra o bloco de pratos nos colabs)
+        "bares": [{"id": bid, "nome": bares_map.get(bid, bid), "pratos": pratos_map.get(bid, False)}
+                  for bid in bar_ids],
+    })
+
+
+@app.route("/admin/gestores")
+def admin_gestores():
+    gestores = storage.listar_gestores()
+    for g in gestores:
+        g.pop("senha", None)   # nunca expor
+    return jsonify(gestores)
+
+
+@app.route("/admin/gestores", methods=["POST"])
+def admin_criar_gestor():
+    """
+    Body: {"nome":..., "id":..., "senha":..., "telefone":..., "bar_ids": [...]}
+    Sem trava de associado aqui (diferente do garcom): um associado
+    PODE ser gestor — sao papeis diferentes, sem conflito de fluxo.
+    """
+    dados = request.get_json()
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
+
+    existente = storage.carregar_gestor(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("bar_ids", [])
+    dados.setdefault("ativo", True)
+    storage.salvar_gestor(dados)
+
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "gestor": resposta})
+
+
+@app.route("/admin/gestores/<gestor_id>", methods=["DELETE"])
+def admin_apagar_gestor(gestor_id):
+    g = storage.carregar_gestor(gestor_id)
+    if not g:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_gestor(gestor_id)
+    return jsonify({"status": "apagado", "id": gestor_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#  ADMINS — acesso total (login.html tenta garcom, depois gestor,
+#  depois admin). Um admin acessa o admin.html E o gestor.html
+#  (como gestor master, ve "*" = todos os bares).
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-admin", methods=["POST"])
+def login_admin():
+    dados = request.get_json() or {}
+    admin = storage.carregar_admin(dados.get("id"))
+    if not admin or admin.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not admin.get("ativo", True):
+        return jsonify({"erro": "admin_inativo"}), 403
+    return jsonify({"status": "ok", "admin_id": admin["id"], "nome": admin["nome"]})
+
+
+@app.route("/admin/admins")
+def admin_listar_admins():
+    admins = storage.listar_admins()
+    for a in admins:
+        a.pop("senha", None)
+    return jsonify(admins)
+
+
+@app.route("/admin/admins", methods=["POST"])
+def admin_criar_admin():
+    dados = request.get_json()
+    existente = storage.carregar_admin(dados.get("id")) if dados.get("id") else None
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_admin(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "admin": resposta})
+
+
+@app.route("/admin/admins/<admin_id>", methods=["DELETE"])
+def admin_apagar_admin(admin_id):
+    a = storage.carregar_admin(admin_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_admin(admin_id)
+    return jsonify({"status": "apagado", "id": admin_id})
+
+
+# ══════════════════════════════════════════════════════════════
+#  COLABS — parceiros externos (estabelecimentos ao redor dos bares)
+#  que originam cadastros por QR proprio. Nao escaneiam consumo —
+#  so cadastram. O painel deles mostra cadastros/boas-vindas/resgates
+#  dos clientes que eles trouxeram, no mesmo formato do gestor.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/login-colab", methods=["POST"])
+def login_colab():
+    dados = request.get_json() or {}
+    colab = storage.carregar_colab(dados.get("id"))
+    if not colab or colab.get("senha") != dados.get("senha"):
+        return jsonify({"erro": "credenciais_invalidas"}), 401
+    if not colab.get("ativo", True):
+        return jsonify({"erro": "colab_inativo"}), 403
+    return jsonify({
+        "status": "ok", "colab_id": colab["id"], "nome": colab["nome"],
+        "bar_id": colab.get("bar_id", ""), "bar_nome": colab.get("bar_nome", ""),
+    })
+
+
+@app.route("/admin/colabs")
+def admin_colabs():
+    colabs = storage.listar_colabs()
+    for a in colabs:
+        a.pop("senha", None)
+    return jsonify(colabs)
+
+
+@app.route("/admin/colabs/stats")
+def admin_colabs_stats():
+    """
+    Estatisticas por colab: cadastros (fichas web originadas pelo QR do
+    colab) e ativos (chopp de boas-vindas confirmado no bar), no mesmo
+    padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    colab_do_telefone = {}
+    for c in storage.listar_consumidores():
+        cid = c.get("colab")
+        if cid:
+            colab_do_telefone[c["telefone"]] = cid
+
+    stats = {}
+    def _s(colab_id):
+        return stats.setdefault(colab_id, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "ativos_total": 0, "ativos_janela": 0,
+            "pratos_total": 0, "pratos_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        tipo = ev.get("tipo")
+        if tipo == "prato":
+            # prato creditado ao colab (evento ja carrega o colab)
+            if not ev.get("colab") or not ev.get("colab_credito"):
+                continue
+            cid, cat = ev["colab"], "pratos"
+        else:
+            cid = colab_do_telefone.get(ev.get("telefone"))
+            if not cid:
+                continue
+            if tipo == "cadastro":
+                cat = "cadastros"
+            elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+                cat = "ativos"
+            else:
+                continue
+        e = _s(cid)
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    # ciclo atual / entregues (vitalicios, do cadastro do colab) + se o bar aceita pratos
+    bares_pratos = {b["id"]: bool(b.get("pratos")) for b in storage.listar_bares()}
+    for a in storage.listar_colabs():
+        e = _s(a["id"])
+        e.update(_pratos_do_colab(a))
+        e["bar_aceita_pratos"] = bares_pratos.get(a.get("bar_id", ""), False)
+
+    return jsonify({"dias": dias, "colabs": stats})
+
+
+@app.route("/admin/colabs", methods=["POST"])
+def admin_criar_colab():
+    dados = request.get_json()
+    # Colab pode ser associado (unica trava de telefone: cliente x garcom)
+    dados["telefone"] = so_digitos(dados.get("telefone", ""))
+
+    existente = storage.carregar_colab(dados.get("id")) if dados.get("id") else None
+    # "novo": o gestor criando pelo painel do bar — nao pode pegar o ID de
+    # um colab de outro bar (ele nao enxerga os outros bares)
+    if dados.pop("novo", False) and existente:
+        return jsonify({"erro": "id_em_uso"}), 409
+    if existente and not dados.get("senha"):
+        dados["senha"] = existente.get("senha")  # edicao sem trocar senha: mantem a atual
+    if existente:
+        # contadores de prato nunca vem do formulario — preserva os atuais
+        for k in ("pratos_ciclo", "pratos_totais", "pratos_entregues",
+                  "ultimo_prato", "ultimo_resgate_prato"):
+            if k in existente:
+                dados[k] = existente[k]
+
+    dados.setdefault("id", str(uuid.uuid4())[:8])
+    dados.setdefault("ativo", True)
+    storage.salvar_colab(dados)
+    resposta = dict(dados)
+    resposta.pop("senha", None)
+    return jsonify({"status": "ok", "colab": resposta})
+
+
+@app.route("/admin/colabs/<colab_id>", methods=["DELETE"])
+def admin_apagar_colab(colab_id):
+    a = storage.carregar_colab(colab_id)
+    if not a:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    storage.apagar_colab(colab_id)
+    return jsonify({"status": "apagado", "id": colab_id})
+
+
+def _telefones_do_colab(colab_id):
+    return {c["telefone"] for c in storage.listar_consumidores() if c.get("colab") == colab_id}
+
+
+@app.route("/colab/<colab_id>/resumo")
+def colab_resumo(colab_id):
+    """
+    Mesma logica do /bar/<id>/resumo, so que filtrando pelos CLIENTES
+    que este colab trouxe (nao por bar/garcom de quem escaneou).
+    ?mes=2026-07 (default: mes corrente)
+    ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+
+    fichas_total / ativos_total: totais VITALICIOS (independem do ?mes
+    pedido) — usados pra tela do colab mostrar "do mes / total", no
+    mesmo padrao janela/total ja usado em /admin/bares/stats e
+    /admin/garcons/stats. "ativos" = boas-vindas confirmado no bar
+    (chave "cadastros" dentro de totais, por compatibilidade com o
+    formato ja usado em bar_resumo/colab_historico).
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+    telefones = _telefones_do_colab(colab_id)
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
+    fichas_total = 0
+    ativos_total = 0
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            fichas_total += 1
+        elif tipo == "resgate" and ev.get("tipo_recompensa") == "boas_vindas":
+            ativos_total += 1
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+        elif tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+        elif tipo == "prato" and ev.get("colab") == colab_id and ev.get("colab_credito"):
+            totais["pratos"] += 1
+
+    # bloco de pratos (vitalicio) — so faz sentido se o bar do colab aceita pratos
+    colab = storage.carregar_colab(colab_id) or {}
+    pratos = _pratos_do_colab(colab)
+    pratos["bar_aceita_pratos"] = _bar_aceita_pratos(colab.get("bar_id", ""))
+
+    return jsonify({"colab_id": colab_id, "mes": mes, "totais": totais,
+                     "fichas_total": fichas_total, "ativos_total": ativos_total,
+                     "total_clientes": len(telefones), "pratos": pratos})
+
+
+@app.route("/colab/<colab_id>/historico")
+def colab_historico(colab_id):
+    """Mesma logica do /bar/<id>/historico, filtrado pelos clientes do colab."""
+    telefones = _telefones_do_colab(colab_id)
+
+    totais_geral = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+    for ev in storage.listar_eventos():
+        if ev.get("telefone") not in telefones:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "fichas"
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+    return jsonify({"colab_id": colab_id, "totais": totais_geral, "meses": meses})
+
+
+@app.route("/gwallet/<telefone>")
+def gwallet_link(telefone):
+    """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
+    c = storage.carregar_consumidor(so_digitos(telefone))
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    try:
+        url = gwallet.link_salvar(c)
+        return Response(status=302, headers={"Location": url})
+    except Exception as e:
+        return jsonify({"erro": "gwallet_indisponivel", "detalhe": str(e)}), 500
+
+
+@app.route("/admin/gwallet/classe", methods=["POST"])
+def gwallet_criar_classe():
+    """Cria a classe do programa no Google (rodar uma vez)."""
+    try:
+        return jsonify(gwallet.garantir_classe())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/gwallet/reatualizar", methods=["POST"])
+def gwallet_reatualizar():
+    """
+    Reenvia ao Google o objeto de TODOS os socios, sem mexer no aviso
+    (nao e um push de texto). Serve para o Android trocar a imagem
+    quando as strips mudam (o Google so baixa a imagem de novo se a
+    URL mudar — ver HERO_VERSAO em gwallet.py).
+    Body opcional: {"telefones": ["5521..."]} para limitar a lista.
+    """
+    dados = request.get_json(silent=True) or {}
+    filtro = {so_digitos(str(t)) for t in (dados.get("telefones") or [])}
+    ok, erros = 0, []
+    for c in storage.listar_consumidores():
+        tel = c.get("telefone", "")
+        if filtro and tel not in filtro:
+            continue
+        try:
+            r = gwallet.atualizar_objeto(c)
+            if r.get("status") == "ok":
+                ok += 1
+            else:
+                erros.append({"telefone": tel, "detalhe": r.get("detalhe", "")[:200]})
+        except Exception as e:
+            erros.append({"telefone": tel, "detalhe": str(e)[:200]})
+    return jsonify({"status": "ok", "reenviados": ok, "erros": erros,
+                    "hero_versao": gwallet.HERO_VERSAO})
+
+
+@app.route("/admin/migrar-eventos", methods=["POST"])
+def admin_migrar_eventos():
+    """
+    RODAR UMA VEZ, logo apos subir esta versao.
+    Junta os eventos antigos (1 arquivo por evento) num log unico
+    (eventos/log.jsonl) — e o que deixa o painel do gestor rapido.
+    Nao apaga nenhum arquivo antigo. Seguro chamar de novo (nao duplica).
+    """
+    try:
+        return jsonify(storage.migrar_eventos_para_log())
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/admin/garcons/stats")
+def garcons_stats():
+    """
+    Estatisticas de scans por garcom.
+    ?dias=30 define a janela recente (default 30).
+    Categorias:
+      cadastros -> resgates de boas_vindas (cliente novo ativado)
+      consumos  -> punches (chopps pagos)
+      resgates  -> resgates de premio (meta atingida)
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    for ev in storage.listar_eventos():
+        g = ev.get("garcom_id")
+        if not g:
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+        s = stats.setdefault(g, {
+            "cadastros_total": 0, "cadastros_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
+            "resgates_total": 0, "resgates_janela": 0,
+        })
+        s[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            s[cat + "_janela"] += 1
+
+    return jsonify({"dias": dias, "garcons": stats})
+
+
+@app.route("/admin/push-lote", methods=["POST"])
+def push_lote():
+    """
+    Dispara push para uma lista de telefones.
+    Body: {"telefones": ["5521...", ...], "texto": "..."}
+    """
+    dados = request.get_json(silent=True) or {}
+    telefones = dados.get("telefones") or []
+    texto = (dados.get("texto") or "").strip()
+    if not telefones or not texto:
+        return jsonify({"erro": "telefones e texto obrigatorios"}), 400
+
+    ok, com_push, sem_push, nao_encontrados = 0, 0, 0, []
+    for tel in telefones:
+        tel = so_digitos(str(tel))
+        c = storage.carregar_consumidor(tel)
+        if not c:
+            nao_encontrados.append(tel)
+            continue
+        resultado = _notificar(c, texto)
+        ok += 1
+        if resultado and resultado.get("enviados", 0) > 0:
+            com_push += 1
+        else:
+            sem_push += 1
+
+    return jsonify({
+        "status": "ok", "processados": ok,
+        "com_dispositivo": com_push, "sem_dispositivo": sem_push,
+        "nao_encontrados": nao_encontrados,
+    })
+
+
+@app.route("/q/<telefone>")
+def qr_universal(telefone):
+    """
+    Destino do QR do cartao quando lido por uma CAMERA comum.
+    Redireciona para a pagina de cadastro, com o bar do dono (indicador)
+    e o dono como padrinho (member gets member).
+    O scanner do garcom NAO passa por aqui — ele extrai o telefone da URL.
+    """
+    from urllib.parse import quote
+    tel = so_digitos(telefone)
+    c = storage.carregar_consumidor(tel)
+    if not c:
+        return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
+    indicador = c.get("indicador", "") or ""
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(indicador)}&padrinho={tel}")
+    return Response(status=302, headers={"Location": destino})
+
+
+@app.route("/c/<colab_id>")
+def qr_colab(colab_id):
+    """
+    Destino do QR que o Colab (parceiro externo) expoe no
+    estabelecimento dele. Redireciona pro cadastro ja com o bar do
+    colab preenchido, e marcando a origem — o cadastro so "completa"
+    de verdade quando o cliente for escaneado de fato no bar (mesmo
+    fluxo de sempre: boas-vindas fica pendente ate o garcom escanear).
+    """
+    from urllib.parse import quote
+    colab = storage.carregar_colab(colab_id)
+    if not colab:
+        return Response("Link invalido.", status=404, mimetype="text/plain")
+    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+               f"?indicador={quote(colab.get('bar_id',''))}&colab={quote(colab_id)}")
+    return Response(status=302, headers={"Location": destino})
+
+
+@app.route("/admin/bares/stats")
+def bares_stats():
+    """
+    Estatisticas por bar: associados (cadastros), consumos (chopps
+    pagos, punch) e resgates, separando chopp de boas-vindas de
+    chopp de meta atingida.
+    ?dias=30 define a janela recente (default 30).
+    """
+    from datetime import timedelta
+    dias = int(request.args.get("dias", 30))
+    corte = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
+
+    stats = {}
+    def _s(bar):
+        return stats.setdefault(bar or "—", {
+            "associados_total": 0, "associados_janela": 0,
+            "consumos_total": 0, "consumos_janela": 0,
+            "boasvindas_total": 0, "boasvindas_janela": 0,
+            "metas_total": 0, "metas_janela": 0,
+        })
+
+    for ev in storage.listar_eventos():
+        tipo = ev.get("tipo")
+        if tipo == "punch":
+            cat = "consumos"
+        elif tipo == "resgate":
+            cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "metas"
+        else:
+            continue
+        e = _s(ev.get("bar"))
+        e[cat + "_total"] += 1
+        if (ev.get("data") or "") >= corte:
+            e[cat + "_janela"] += 1
+
+    for c in storage.listar_consumidores():
+        e = _s(c.get("indicador"))
+        e["associados_total"] += 1
+        if (c.get("cadastro_em") or "") >= corte:
+            e["associados_janela"] += 1
+
+    return jsonify({"dias": dias, "bares": stats})
+
+
+@app.route("/admin/bloqueados")
+def admin_bloqueados():
+    return jsonify(storage.carregar_bloqueados())
+
+
+@app.route("/admin/bloqueados", methods=["POST"])
+def admin_bloquear():
+    """Body: {"telefones": [...], "bar": "<bar_id>" ou "*"} — bloqueia no bar indicado."""
+    dados = request.get_json(silent=True) or {}
+    bar_alvo = (dados.get("bar") or "*").strip() or "*"
+    novos = [so_digitos(str(t)) for t in (dados.get("telefones") or [])]
+    novos = [t for t in novos if 10 <= len(t) <= 13]
+    lista = storage.carregar_bloqueados()
+    lista.extend({"telefone": t, "bar": bar_alvo} for t in novos)
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "adicionados": len(novos), "bar": bar_alvo})
+
+
+@app.route("/admin/bloqueados/<telefone>", methods=["DELETE"])
+def admin_desbloquear(telefone):
+    """?bar=<bar_id> remove o bloqueio daquele bar; sem bar, remove todos do numero."""
+    tel = so_digitos(telefone)
+    bar_alvo = request.args.get("bar")
+    lista = storage.carregar_bloqueados()
+    if bar_alvo:
+        lista = [b for b in lista if not (b["telefone"] == tel and b["bar"] == bar_alvo)]
+    else:
+        lista = [b for b in lista if b["telefone"] != tel]
+    storage.salvar_bloqueados(lista)
+    return jsonify({"status": "ok", "total": len(lista)})
+
+
+@app.route("/bar/<bar_id>/atividade")
+def atividade_bar(bar_id):
+    """
+    Feed de leituras do bar — usado na aba Atividade do scanner e no
+    painel do gestor (aba Atividade e detalhe por garcom).
+
+    ?limite=30      (max 100, default 30 — bloco do scroll infinito)
+    ?offset=0       (posicao inicial; manda offset+limite do bloco anterior
+                     para carregar o proximo)
+    ?mes=2026-07    (opcional; filtra pelo mes do evento)
+    ?garcom_id=g01  (opcional; filtra por garcom — usado na tela de
+                     detalhe do garcom, aberta a partir do card na aba Atual)
+
+    Resposta: {eventos:[...], offset, limite, total, tem_mais}
+    tem_mais indica se ha mais eventos para o proximo bloco.
+    """
+    limite = min(int(request.args.get("limite", 30)), 100)
+    offset = max(int(request.args.get("offset", 0)), 0)
+    mes = request.args.get("mes")
+    garcom_filtro = request.args.get("garcom_id")
+
+    eventos = [e for e in storage.listar_eventos()
+               if (bar_id == "*" or e.get("bar") == bar_id)
+               and e.get("tipo") in ("punch", "resgate", "prato", "resgate_prato")]
+
+    if mes and mes != "todos":
+        eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
+    if garcom_filtro:
+        eventos = [e for e in eventos if e.get("garcom_id") == garcom_filtro]
+
+    eventos.sort(key=lambda e: e.get("data", ""), reverse=True)
+    total = len(eventos)
+    pagina = eventos[offset:offset + limite]
+
+    nomes = {}
+    for tel in {e.get("telefone") for e in pagina if e.get("telefone")}:
+        c = storage.carregar_consumidor(tel)
+        if c:
+            nomes[tel] = c.get("nome", "")
+
+    garcons = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
+
+    # nome do colab (resgate_prato nao tem telefone: o "cliente" e o colab)
+    colabs = {}
+    if any(e.get("colab") for e in pagina):
+        colabs = {a["id"]: a.get("nome", a["id"]) for a in storage.listar_colabs()}
+
+    return jsonify({
+        "eventos": [{
+            "nome": (nomes.get(e.get("telefone")) or e.get("telefone")
+                     or colabs.get(e.get("colab"), e.get("colab")) or "—"),
+            "data": e.get("data"),
+            "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
+            "tipo": e.get("tipo"),
+            "tipo_recompensa": e.get("tipo_recompensa"),
+            "colab": colabs.get(e.get("colab")) if e.get("colab") else None,
+        } for e in pagina],
+        "offset": offset,
+        "limite": limite,
+        "total": total,
+        "tem_mais": (offset + limite) < total,
+    })
+
+
+@app.route("/bar/<bar_id>/totais")
+def bar_totais(bar_id):
+    """
+    Versao ENXUTA do /bar/<id>/resumo — so os 4 numeros agregados,
+    sem quebra por garcom nem por colab. Usada na tela de "trocar de
+    bar" do gestor, que so mostra esses numeros nos cards e nao
+    precisa (nem usava) a quebra detalhada. Como nao precisa de
+    listar_consumidores/garcons/gestores/admins/colabs — so o log de
+    eventos — fica rapida mesmo com muitos socios cadastrados.
+
+    ?mes=2026-07 (default: mes corrente)
+    ?mes=todos   (agrega TODOS os eventos, sem filtro de data)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+        elif tipo == "punch":
+            totais["pontuacao"] += 1
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+            totais[cat] += 1
+        elif tipo == "prato":
+            totais["pratos"] += 1
+
+    return jsonify({"bar_id": bar_id, "mes": mes, "totais": totais})
+
+
+@app.route("/bar/<bar_id>/resumo")
+def bar_resumo(bar_id):
+    """
+    Resumo do bar num periodo + quebra por garcom e por colab.
+    Alimenta as abas Atual (mes corrente) e Historico (mes selecionado,
+    ou "Desde o inicio" quando ?mes=todos) do painel do gestor.
+
+    ?mes=2026-07  (default: mes corrente, formato YYYY-MM)
+    ?mes=todos    (agrega TODOS os eventos, sem filtro de data)
+
+    Categorias:
+      fichas    -> cadastros feitos na web (ainda nao completados no bar) — nao existe pra garcom
+      cadastros -> resgates de boas_vindas (o cadastro "completa" e vira socio)
+      pontuacao -> punches (chopps de rotina)
+      resgates  -> resgates de premio (meta atingida)
+    """
+    mes = request.args.get("mes") or datetime.now(timezone.utc).strftime("%Y-%m")
+    todos_os_tempos = (mes == "todos")
+
+    garcons_map = {g["id"]: g.get("nome", g["id"]) for g in storage.listar_garcons()}
+    garcons_map.update({g["id"]: g.get("nome", g["id"]) for g in storage.listar_gestores()})
+    garcons_map.update({a["id"]: a.get("nome", a["id"]) for a in storage.listar_admins()})
+    todos_colabs = storage.listar_colabs()
+    colabs_map = {a["id"]: a.get("nome", a["id"]) for a in todos_colabs}
+    colabs_por_id = {a["id"]: a for a in todos_colabs}
+    bar_aceita_pratos = _bar_aceita_pratos(bar_id) if bar_id != "*" else False
+
+    def _novo_colab(aid):
+        a = colabs_por_id.get(aid, {})
+        item = {
+            "colab_id": aid, "nome": colabs_map.get(aid, aid),
+            "telefone": a.get("telefone", ""), "ativo": a.get("ativo", True),
+            "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            "pratos": 0,  # pratos dos indicados no periodo pedido
+        }
+        item.update(_pratos_do_colab(a))  # ciclo / totais / entregues / liberado (vitalicios)
+        return item
+
+    totais = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0, "pratos": 0}
+    por_garcom = {}
+    por_colab = {}
+
+    # todo garcom/colab do bar aparece desde ja, mesmo com zero atividade —
+    # senao um cadastro recem-criado some da lista ate ter movimento
+    if bar_id != "*":
+        for g in storage.listar_garcons():
+            if g.get("bar_id") == bar_id:
+                por_garcom[g["id"]] = {
+                    "garcom_id": g["id"], "nome": g.get("nome", g["id"]),
+                    "cadastros": 0, "pontuacao": 0, "resgates": 0,
+                }
+        for a in todos_colabs:
+            if a.get("bar_id") == bar_id:
+                por_colab[a["id"]] = _novo_colab(a["id"])
+
+    # telefone -> colab que o trouxe (so dos colabs deste bar)
+    colab_do_telefone = {}
+    if bar_id == "*" or por_colab:
+        ids_colabs_do_bar = set(por_colab.keys()) if bar_id != "*" else None
+        for c in storage.listar_consumidores():
+            al = c.get("colab")
+            if al and (ids_colabs_do_bar is None or al in ids_colabs_do_bar):
+                colab_do_telefone[c["telefone"]] = al
+
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        if not todos_os_tempos and not (ev.get("data") or "").startswith(mes):
+            continue
+
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            totais["fichas"] += 1
+            aid = colab_do_telefone.get(ev.get("telefone"))
+            if aid:
+                por_colab.setdefault(aid, _novo_colab(aid))["fichas"] += 1
+            continue
+        elif tipo == "prato":
+            # prato do cliente: conta pro bar e, se creditou, pro colab
+            totais["pratos"] += 1
+            aid = ev.get("colab")
+            if aid and ev.get("colab_credito") and (bar_id == "*" or aid in por_colab):
+                por_colab.setdefault(aid, _novo_colab(aid))["pratos"] += 1
+            continue
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais[cat] += 1
+
+        gid = ev.get("garcom_id")
+        if gid:
+            g = por_garcom.setdefault(gid, {
+                "garcom_id": gid, "nome": garcons_map.get(gid, gid),
+                "cadastros": 0, "pontuacao": 0, "resgates": 0,
+            })
+            g[cat] += 1
+
+        aid = colab_do_telefone.get(ev.get("telefone"))
+        if aid:
+            por_colab.setdefault(aid, _novo_colab(aid))[cat] += 1
+
+    return jsonify({
+        "bar_id": bar_id,
+        "mes": mes,
+        "pratos": bar_aceita_pratos,
+        "totais": totais,
+        "garcons": sorted(por_garcom.values(), key=lambda g: g["nome"]),
+        "colabs": sorted(por_colab.values(), key=lambda a: a["nome"]),
+    })
+
+
+@app.route("/bar/<bar_id>/historico")
+def bar_historico(bar_id):
+    """
+    Alimenta a aba Historico do painel do gestor numa chamada so:
+    o total geral do bar (todos os meses) + a lista de meses com
+    totais, do mais recente para o mais antigo — cada item vira
+    direto um card na tela, sem precisar de 1 request por mes.
+    """
+    totais_geral = {"fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0}
+    por_mes = {}
+
+    for ev in storage.listar_eventos():
+        if bar_id != "*" and ev.get("bar") != bar_id:
+            continue
+        data = ev.get("data") or ""
+        if len(data) < 7:
+            continue
+        mes = data[:7]  # YYYY-MM
+
+        tipo = ev.get("tipo")
+        if tipo == "cadastro":
+            cat = "fichas"
+        elif tipo == "punch":
+            cat = "pontuacao"
+        elif tipo == "resgate":
+            cat = "cadastros" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        else:
+            continue
+
+        totais_geral[cat] += 1
+        m = por_mes.setdefault(mes, {"mes": mes, "fichas": 0, "cadastros": 0, "pontuacao": 0, "resgates": 0})
+        m[cat] += 1
+
+    meses = sorted(por_mes.values(), key=lambda m: m["mes"], reverse=True)
+
+    return jsonify({
+        "bar_id": bar_id,
+        "totais": totais_geral,
+        "meses": meses,
+    })
+
+
+@app.route("/admin/arvores")
+def admin_arvores():
+    """
+    Lista sócios com marco de 100 chopps atingido e ainda NAO plantado.
+    Cada item vira uma linha na aba Árvores do admin.
+    """
+    pendentes = []
+    for c in storage.listar_consumidores():
+        for arv in c.get("arvores", []):
+            if not arv.get("plantada"):
+                pendentes.append({
+                    "telefone": c["telefone"], "nome": c.get("nome", "—"),
+                    "marco": arv["marco"], "detectada_em": arv.get("detectada_em"),
+                })
+    pendentes.sort(key=lambda a: a.get("detectada_em") or "")
+    return jsonify(pendentes)
+
+
+@app.route("/admin/arvores/marcar", methods=["POST"])
+def admin_marcar_arvore():
+    """
+    Marca um marco especifico como plantado (nao dispara push — o
+    aviso de "arvore plantada de verdade" e manual, feito por fora,
+    junto com foto/Instagram/etc.).
+    Body: {"telefone": "...", "marco": 100}
+    """
+    dados = request.get_json(silent=True) or {}
+    tel = so_digitos(dados.get("telefone", ""))
+    marco = dados.get("marco")
+    c = storage.carregar_consumidor(tel)
+    if not c:
+        return jsonify({"erro": "nao_encontrado"}), 404
+    achou = False
+    for arv in c.get("arvores", []):
+        if arv["marco"] == marco and not arv.get("plantada"):
+            arv["plantada"] = True
+            arv["plantada_em"] = agora()
+            achou = True
+            break
+    if not achou:
+        return jsonify({"erro": "marco_nao_encontrado_ou_ja_plantado"}), 404
+    storage.salvar_consumidor(c)
+    return jsonify({"status": "ok"})
+
+
+# ══════════════════════════════════════════════════════════════
+#  MENSAGENS — canal livre do socio pra pedir resgate ou tirar duvida,
+#  direto na pagina de perfil. Aparecem na aba Mensagens do admin,
+#  que pode marcar como "lida" quando ja tomou providencia.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/mensagens", methods=["POST"])
+def criar_mensagem():
+    """Body: {"telefone": "...", "nome": "...", "texto": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    telefone = so_digitos(dados.get("telefone", ""))
+    texto = (dados.get("texto") or "").strip()
+    if not telefone or not texto:
+        return jsonify({"erro": "telefone_e_texto_obrigatorios"}), 400
+
+    nome = (dados.get("nome") or "").strip()
+    if not nome:
+        c = storage.carregar_consumidor(telefone)
+        nome = c.get("nome", "") if c else ""
+
+    mensagem = {
+        "telefone": telefone,
+        "nome": nome,
+        "texto": texto,
+        "data": agora(),
+        "lida": False,
+    }
+    storage.salvar_mensagem(mensagem)
+    return jsonify({"status": "ok", "mensagem": mensagem})
+
+
+@app.route("/admin/mensagens")
+def admin_mensagens():
+    mensagens = storage.listar_mensagens()
+    mensagens.sort(key=lambda m: m.get("data", ""), reverse=True)
+    return jsonify(mensagens)
+
+
+@app.route("/admin/mensagens/marcar", methods=["POST"])
+def admin_marcar_mensagem():
+    """Body: {"id": "..."}"""
+    dados = request.get_json(silent=True) or {}
+    mid = dados.get("id")
+    if not mid:
+        return jsonify({"erro": "id_obrigatorio"}), 400
+    ok = storage.marcar_mensagem_lida(mid)
+    if not ok:
+        return jsonify({"erro": "nao_encontrada"}), 404
+    return jsonify({"status": "ok"})
+
+
+# ══════════════════════════════════════════════════════════════
+#  REEMBOLSO DE CHOPPS AOS BARES
+#  Cada chopp gratis (boas-vindas ou resgate de cartela) e pago pela
+#  Backbone. O bar e reembolsado em desconto na compra de barris.
+#    ENTRADA = chopp gratis dado (evento "resgate"), somado por mes
+#    SAIDA   = desconto concedido (lancado pelo admin)
+#    SALDO   = entradas - saidas (o que ainda falta descontar)
+#  Pratos nao entram: so chopps.
+# ══════════════════════════════════════════════════════════════
+
+_MESES_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+             "agosto", "setembro", "outubro", "novembro", "dezembro"]
+
+
+def _nome_mes(aaaa_mm):
+    ano, mes = aaaa_mm.split("-")
+    return f"{_MESES_PT[int(mes) - 1]}/{ano}"
+
+
+def _entradas_reembolso():
+    """{bar_id: {"2026-09": {"boasvindas": n, "resgates": n}}} — um passe so no log."""
+    por_bar = {}
+    for ev in storage.listar_eventos():
+        if ev.get("tipo") != "resgate":
+            continue
+        bar = ev.get("bar")
+        mes = (ev.get("data") or "")[:7]
+        if not bar or len(mes) != 7:
+            continue
+        cat = "boasvindas" if ev.get("tipo_recompensa") == "boas_vindas" else "resgates"
+        por_bar.setdefault(bar, {}).setdefault(mes, {"boasvindas": 0, "resgates": 0})[cat] += 1
+    return por_bar
+
+
+def _ficha_reembolso(entradas_bar, descontos_bar):
+    """Monta a planilha do bar: linhas em ordem de data, com saldo corrente."""
+    import calendar
+    hoje = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    mes_atual = hoje[:7]
+
+    linhas = []
+    for mes, n in entradas_bar.items():
+        parcial = (mes == mes_atual)
+        if parcial:
+            data = hoje
+        else:
+            ano, m = int(mes[:4]), int(mes[5:7])
+            data = f"{mes}-{calendar.monthrange(ano, m)[1]:02d}"
+        sufixo = " (mês em andamento)" if parcial else ""
+        for cat, rotulo in (("boasvindas", "Boas-vindas"), ("resgates", "Resgates")):
+            if n.get(cat):
+                linhas.append({
+                    "tipo": "entrada", "data": data, "quantidade": n[cat],
+                    "descricao": f"{rotulo} — {_nome_mes(mes)}{sufixo}",
+                    "categoria": cat,
+                })
+    for d in descontos_bar:
+        linhas.append({
+            "tipo": "saida", "id": d.get("id"), "data": d.get("data", ""),
+            "quantidade": int(d.get("quantidade", 0)),
+            "descricao": "Desconto na compra de barris" + (f" — {d['referencia']}" if d.get("referencia") else ""),
+        })
+
+    # mesma data: entradas antes das saidas
+    linhas.sort(key=lambda l: (l["data"], 0 if l["tipo"] == "entrada" else 1))
+
+    saldo = 0
+    dist_bv = dist_rg = reembolsados = 0
+    for l in linhas:
+        if l["tipo"] == "entrada":
+            saldo += l["quantidade"]
+            if l["categoria"] == "boasvindas":
+                dist_bv += l["quantidade"]
+            else:
+                dist_rg += l["quantidade"]
+        else:
+            saldo -= l["quantidade"]
+            reembolsados += l["quantidade"]
+        l["saldo"] = saldo
+
+    return {
+        "linhas": linhas,
+        "totais": {
+            "distribuidos": dist_bv + dist_rg,
+            "boasvindas": dist_bv,
+            "resgates": dist_rg,
+            "reembolsados": reembolsados,
+            "descontos": sum(1 for l in linhas if l["tipo"] == "saida"),
+            "saldo": saldo,
+        },
+    }
+
+
+def _descontos_por_bar():
+    por_bar = {}
+    for d in storage.listar_descontos():
+        por_bar.setdefault(d.get("bar"), []).append(d)
+    return por_bar
+
+
+@app.route("/bar/<bar_id>/reembolsos")
+def bar_reembolsos(bar_id):
+    """Planilha de reembolso de UM bar (admin e gestor leem a mesma)."""
+    if bar_id == "*":
+        return jsonify({"erro": "escolha_um_bar"}), 400
+    entradas = _entradas_reembolso().get(bar_id, {})
+    descontos = _descontos_por_bar().get(bar_id, [])
+    ficha = _ficha_reembolso(entradas, descontos)
+    ficha["bar_id"] = bar_id
+    return jsonify(ficha)
+
+
+@app.route("/admin/reembolsos")
+def admin_reembolsos():
+    """Resumo de todos os bares + totais gerais."""
+    entradas = _entradas_reembolso()
+    descontos = _descontos_por_bar()
+    bares = {b["id"]: b.get("nome", b["id"]) for b in storage.listar_bares()}
+    ids = set(bares) | set(entradas) | set(descontos)
+
+    lista = []
+    geral = {"distribuidos": 0, "reembolsados": 0, "saldo": 0}
+    for bid in ids:
+        t = _ficha_reembolso(entradas.get(bid, {}), descontos.get(bid, []))["totais"]
+        lista.append({"bar_id": bid, "nome": bares.get(bid, bid), **t})
+        for k in geral:
+            geral[k] += t[k]
+    lista.sort(key=lambda b: (-b["saldo"], b["nome"].lower()))
+    return jsonify({"bares": lista, "totais": geral})
+
+
+@app.route("/admin/reembolsos", methods=["POST"])
+def admin_lancar_desconto():
+    """Body: {"bar": "...", "data": "2026-11-07", "quantidade": 37, "referencia": "Pedido 5230"}"""
+    dados = request.get_json(silent=True) or {}
+    bar = (dados.get("bar") or "").strip()
+    if not bar or not storage.carregar_bar(bar):
+        return jsonify({"erro": "bar_invalido"}), 400
+    try:
+        quantidade = int(dados.get("quantidade"))
+        datetime.strptime(dados.get("data", ""), "%Y-%m-%d")
+    except (TypeError, ValueError):
+        return jsonify({"erro": "dados_invalidos"}), 400
+    if quantidade <= 0:
+        return jsonify({"erro": "quantidade_invalida"}), 400
+
+    desconto = storage.salvar_desconto({
+        "bar": bar,
+        "data": dados["data"],
+        "quantidade": quantidade,
+        "referencia": (dados.get("referencia") or "").strip(),
+        "criado_em": agora(),
+    })
+    return jsonify({"status": "ok", "desconto": desconto})
+
+
+@app.route("/admin/reembolsos/<desconto_id>", methods=["DELETE"])
+def admin_estornar_desconto(desconto_id):
+    if not storage.apagar_desconto(desconto_id):
+        return jsonify({"erro": "nao_encontrado"}), 404
+    return jsonify({"status": "ok"})
+
+
+@app.route("/")
+def health():
+    return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
+
+
+# ══════════════════════════════════════════════════════════════
+#  EXTRAIR PADRINHO  (member gets member via BotConversa)
+#  Recebe a mensagem suja e devolve so o telefone do padrinho.
+# ══════════════════════════════════════════════════════════════
+
+@app.route("/extrair-padrinho", methods=["POST", "GET"])
+def extrair_padrinho():
+    msg = ""
+    if request.is_json:
+        msg = (request.get_json(silent=True) or {}).get("mensagem", "")
+    if not msg:
+        msg = request.form.get("mensagem", "") or request.args.get("mensagem", "")
+
+    padrinho = ""
+    if msg:
+        m = re.search(r"padrinho[^0-9]*([0-9][0-9\s\-\+\(\)]{9,})", msg, re.IGNORECASE)
+        if m:
+            padrinho = so_digitos(m.group(1))
+        else:
+            achados = re.findall(r"[0-9][0-9\s\-\+\(\)]{9,}", msg)
+            cands = [so_digitos(a) for a in achados]
+            cands = [c for c in cands if 10 <= len(c) <= 13]
+            if cands:
+                padrinho = max(cands, key=len)
+
+    return jsonify({"padrinho": padrinho})
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)
