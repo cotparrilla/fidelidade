@@ -15,7 +15,7 @@ import certs
 import storage
 
 APNS_HOST = os.environ.get("APNS_HOST", "https://api.push.apple.com")
-TOPIC = os.environ.get("PASS_TYPE_ID", "pass.com.backbonecervejaria.clube")
+TOPIC = os.environ.get("PASS_TYPE_ID", "")
 
 _CLIENT = None
 

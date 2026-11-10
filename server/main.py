@@ -1,4 +1,4 @@
-# Backbone Beer - Clube Backbone - v3
+# Clube Cotito - servidor (base: Clube Backbone v3)
 #
 # Mudancas em relacao a v2:
 #   - /scan unificado: o garcom faz UM gesto. Se ha recompensa, resgata.
@@ -19,6 +19,7 @@ from flask_cors import CORS
 
 import storage
 import auth
+import regras
 import pkpass
 import apns
 import gwallet
@@ -35,7 +36,9 @@ def _checar_acesso():
         corpo, status = bloqueio
         return jsonify(corpo), status
 
-PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "pass.com.backbonecervejaria.clube")
+PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "")
+# endereco publico das telas (GitHub Pages)
+PAGES_URL = os.environ.get("PAGES_URL", "https://cotparrilla.github.io/fidelidade").rstrip("/")
 
 
 def agora():
@@ -44,6 +47,13 @@ def agora():
 
 def so_digitos(s):
     return "".join(c for c in (s or "") if c.isdigit())
+
+
+def _publico(c):
+    """Copia do cliente sem a credencial do cartao Apple."""
+    c = dict(c)
+    c.pop("auth_token", None)
+    return c
 
 
 def _disponiveis(c):
@@ -87,8 +97,6 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     # indicador vem por query string: ?ind=5521999887766
     indicador_tel = so_digitos(request.args.get("padrinho", ""))
-    palavra_chave = (request.args.get("palavra", "") or "").strip()
-    cep = so_digitos(request.args.get("cep", ""))[:8]
     if indicador_tel == telefone:
         indicador_tel = ""  # auto-indicacao bloqueada
 
@@ -113,7 +121,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
     existente = storage.carregar_consumidor(telefone)
     if existente:
-        return jsonify({"status": "ja_cadastrado", "consumidor": existente})
+        return jsonify({"status": "ja_cadastrado", "consumidor": _publico(existente)})
 
     config = storage.carregar_config()
 
@@ -124,11 +132,8 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "nome": nome,
         "indicador": bar,
         "colab": colab_id or None,
-        "palavra_chave": palavra_chave,
-        "cep": cep,
         "nascimento_dia": dia,
         "nascimento_mes": mes,
-        "time": time,
 
         "punches": 0,
         "meta": int(config["punches_para_recompensa"]),        # CONGELADA
@@ -136,6 +141,9 @@ def cadastro(bar, telefone, nome, dia, mes, time):
 
         "padrinho": indicador["telefone"] if indicador else None,
         "indicados": [],
+        "indicacoes_confirmadas": 0,     # indicados que ja retiraram o mate
+        "indicacao_contada": False,      # se a MINHA indicacao ja contou para o padrinho
+        "brindes_entregues": [],
 
         "recompensas": [
             {"tipo": "boas_vindas", "gerada_em": agora(), "resgatada": False}
@@ -145,7 +153,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "temporadas_completas": [],
 
         "auth_token": secrets.token_hex(20),   # unico por consumidor
-        "aviso": "Bem-vindo ao Clube Backbone! Seu primeiro chopp é por nossa conta.",
+        "aviso": "Bem-vindo ao Clube Cotito! Mostre este cartão no balcão e pegue seu mate da casa.",
         "ultimo_punch": None,
         "cadastro_em": agora(),
         "atualizado_em": agora(),
@@ -157,7 +165,9 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         indicador.setdefault("indicados", [])
         if telefone not in indicador["indicados"]:
             indicador["indicados"].append(telefone)
-        _notificar(indicador, f"{nome} entrou no Clube pelo seu convite. Quando fechar a cartela, você ganha um ponto.")
+        primeiro = (nome or "Seu amigo").split(" ")[0]
+        _notificar(indicador, f"{primeiro} entrou no Clube Cotito pelo seu convite. "
+                              f"Quando pegar o mate da casa, a indicação conta para você.")
 
     storage.salvar_evento({
         "id": str(uuid.uuid4()), "tipo": "cadastro", "telefone": telefone,
@@ -166,7 +176,7 @@ def cadastro(bar, telefone, nome, dia, mes, time):
         "data": agora(),
     })
 
-    return jsonify({"status": "cadastrado", "consumidor": consumidor})
+    return jsonify({"status": "cadastrado", "consumidor": _publico(consumidor)})
 
 
 @app.route("/consumidor/<telefone>")
@@ -177,6 +187,8 @@ def consultar_consumidor(telefone):
     c["punches_para_recompensa"] = c.get("meta", 10)
     c["recompensas_disponiveis"] = len(_disponiveis(c))
     c["total_indicados"] = len(c.get("indicados", []))
+    c["resumo"] = _resumo_cliente(c)
+    c.pop("auth_token", None)   # credencial do cartao Apple: nunca expor
     # colab de origem (para a tela de PRATO do scanner mostrar quem credita)
     c["colab_nome"] = None
     c["colab_bar_id"] = None
@@ -192,51 +204,90 @@ def consultar_consumidor(telefone):
 #  SCAN - o gesto unico do garcom
 # ══════════════════════════════════════════════════════════════
 
-def _creditar_indicador(consumidor):
-    """Chamado quando o consumidor FECHA a cartela. Credita 1 ponto ao indicador."""
+def _confirmar_indicacao(consumidor):
+    """
+    O indicado retirou o mate: a indicacao passa a contar para quem indicou.
+    Avisa o padrinho, e se ele bateu um degrau de brinde, avisa do brinde.
+    """
     tel_ind = consumidor.get("padrinho")
-    if not tel_ind:
+    if not tel_ind or consumidor.get("indicacao_contada"):
         return
-
     ind = storage.carregar_consumidor(tel_ind)
     if not ind or not ind.get("ativo", True):
         return
 
-    # cartela cheia -> ponto DESCARTADO
-    if _disponiveis(ind):
-        _notificar(ind, "Um indicado seu fechou a meta, mas sua cartela está cheia. "
-                        "Venha resgatar seu chopp para voltar a pontuar.")
-        storage.salvar_evento({
-            "id": str(uuid.uuid4()), "tipo": "ponto_indicacao_descartado",
-            "telefone": tel_ind, "origem": consumidor["telefone"], "data": agora(),
-        })
-        return
+    consumidor["indicacao_contada"] = True
+    config = storage.carregar_config()
+    antes = regras.status_brindes(ind, config)
+    ind["indicacoes_confirmadas"] = regras.indicacoes(ind) + 1
+    depois = regras.status_brindes(ind, config)
 
-    meta_ind = int(ind.get("meta", 10))
-    ind["punches"] = int(ind.get("punches", 0)) + 1
-
-    if ind["punches"] >= meta_ind:
-        ind["recompensas"].append({"tipo": "punch", "gerada_em": agora(), "resgatada": False})
-        ind["recompensas_total"] = ind.get("recompensas_total", 0) + 1
-        aviso = ("Um indicado seu fechou a meta — e fechou a sua cartela! "
-                 "Chame o atendente e resgate seu chopp.")
+    novos = [b for b in depois["pendentes"] if b["qtd"] not in {p["qtd"] for p in antes["pendentes"]}]
+    primeiro_nome = (consumidor.get("nome") or "Seu amigo").split(" ")[0]
+    if novos:
+        aviso = (f"{primeiro_nome} pegou o mate e você chegou a {depois['total']} indicações: "
+                 f"você ganhou o brinde {novos[0]['nome']}! Retire no balcão do Cotito.")
+    elif depois["proximo"]:
+        faltam = depois["proximo"]["qtd"] - depois["total"]
+        aviso = (f"{primeiro_nome} pegou o mate: +1 indicação para você. "
+                 f"Faltam {faltam} para o brinde {depois['proximo']['nome']}.")
     else:
-        faltam = meta_ind - ind["punches"]
-        aviso = f"Parabéns! Seu indicado fechou a meta e você ganhou um ponto. Faltam {faltam} para o seu chopp."
+        aviso = f"{primeiro_nome} pegou o mate: +1 indicação para você ({depois['total']} no total)."
 
     _notificar(ind, aviso)
     storage.salvar_evento({
-        "id": str(uuid.uuid4()), "tipo": "ponto_indicacao",
-        "telefone": tel_ind, "origem": consumidor["telefone"], "data": agora(),
+        "id": str(uuid.uuid4()), "tipo": "indicacao_confirmada",
+        "telefone": tel_ind, "origem": consumidor["telefone"],
+        "total": depois["total"], "data": agora(),
     })
+
+
+def _resumo_cliente(c):
+    """Campos que o scanner e as telas do cliente usam para decidir o que mostrar."""
+    config = storage.carregar_config()
+    pend = _disponiveis(c)
+    st = regras.status_brindes(c, config)
+    prox = regras.proximo_ponto_em(c, config)
+    return {
+        "nome": c.get("nome", ""),
+        "punches": int(c.get("punches", 0)),
+        "meta": int(c.get("meta", 10)),
+        "mate_pendente": any(r.get("tipo") == "boas_vindas" for r in pend),
+        "premio_pendente": any(r.get("tipo") == "punch" for r in pend),
+        "proximo_ponto_em": prox.isoformat() if prox else None,
+        "ultimo_ponto": c.get("ultimo_punch"),
+        "indicacoes": st["total"],
+        "brindes": st["brindes"],
+        "proximo_brinde": st["proximo"],
+        "brindes_pendentes": st["pendentes"],
+        "texto_indicacoes": regras.texto_indicacoes(c, config),
+    }
+
+
+def _resgatar(consumidor, tipo, bar, garcom_id):
+    for r in consumidor.get("recompensas", []):
+        if r.get("tipo") == tipo and not r.get("resgatada"):
+            r["resgatada"] = True
+            r["resgatada_em"] = agora()
+            r["resgatada_bar"] = bar
+            r["resgatada_garcom"] = garcom_id
+            return True
+    return False
 
 
 @app.route("/scan", methods=["POST"])
 def scan():
+    """
+    Body: {"telefone", "garcom_id", "bar", "acao"}
+    acao: "ponto" (pedido com executivo), "mate" (boas-vindas), "premio"
+    (executivo gratis) ou "brinde" (brinde de indicacao). Sem acao, faz o que
+    estiver pendente na ordem mate > premio > ponto (como a base fazia).
+    """
     dados = request.get_json() or {}
     telefone = so_digitos(dados.get("telefone"))
     garcom_id = dados.get("garcom_id")
     bar = dados.get("bar")
+    acao = (dados.get("acao") or "").strip()
 
     if not telefone or not garcom_id or not bar:
         return jsonify({"erro": "dados_incompletos"}), 400
@@ -245,9 +296,7 @@ def scan():
     if not consumidor:
         return jsonify({"erro": "consumidor_nao_encontrado"}), 404
 
-    # quem esta escaneando pode ser um garcom, um gestor, OU um admin
-    # (admin e gestor entram no scanner com a propria credencial, sem
-    # precisar de um cadastro de garcom a parte)
+    # quem esta escaneando pode ser um atendente, um gestor ou um admin
     garcom = storage.carregar_garcom(garcom_id)
     if garcom:
         if not _garcom_pertence_bar(garcom, bar):
@@ -257,125 +306,112 @@ def scan():
         if gestor:
             if "*" not in gestor.get("bar_ids", []) and bar not in gestor.get("bar_ids", []):
                 return jsonify({"erro": "bar_diferente"}), 403
-        else:
-            admin = storage.carregar_admin(garcom_id)
-            if not admin:
-                return jsonify({"erro": "garcom_nao_encontrado"}), 404
-            # admin pode escanear em qualquer bar, sem checagem adicional
+        elif not storage.carregar_admin(garcom_id):
+            return jsonify({"erro": "garcom_nao_encontrado"}), 404
 
     config = storage.carregar_config()
     consumidor.setdefault("recompensas", [])
     consumidor.setdefault("meta", int(config["punches_para_recompensa"]))
     consumidor.setdefault("temporada", config["temporada_vigente"])
-
-    # contador vitalicio de chopps consumidos (nunca zera, ao contrario
-    # de "punches" que reinicia a cada cartela). Base para o marco das
-    # arvores plantadas a cada 100 chopps.
-    consumidor["chopps_totais"] = consumidor.get("chopps_totais", 0) + 1
-    marco_arvore = None
-    if consumidor["chopps_totais"] % 100 == 0:
-        marco_arvore = consumidor["chopps_totais"]
-        consumidor.setdefault("arvores", []).append({
-            "marco": marco_arvore, "detectada_em": agora(),
-            "plantada": False, "plantada_em": None,
-        })
-
-    pendentes = _disponiveis(consumidor)
-
-    # ─────────── CAMINHO 1: tem recompensa -> RESGATA ───────────
-    if pendentes:
-        pendentes.sort(key=lambda r: 0 if r.get("tipo") == "boas_vindas" else 1)
-        recompensa = pendentes[0]
-
-        for r in consumidor["recompensas"]:
-            if r is recompensa:
-                r["resgatada"] = True
-                r["resgatada_em"] = agora()
-                r["resgatada_bar"] = bar
-                r["resgatada_garcom"] = garcom_id
-                break
-
-        tipo = recompensa.get("tipo")
-
-        if tipo == "punch":
-            # fecha o ciclo: nova cartela, nova meta, nova temporada
-            temporada_antiga = consumidor.get("temporada")
-            consumidor["punches"] = 0
-            consumidor["meta"] = int(config["punches_para_recompensa"])
-            consumidor["temporada"] = config["temporada_vigente"]
-            consumidor["ciclos_completos"] = consumidor.get("ciclos_completos", 0) + 1
-            consumidor.setdefault("temporadas_completas", [])
-            if temporada_antiga and temporada_antiga not in consumidor["temporadas_completas"]:
-                consumidor["temporadas_completas"].append(temporada_antiga)
-            aviso = f"Chopp resgatado! Nova cartela aberta — temporada {consumidor['temporada']}."
-        else:
-            # boas-vindas: NAO mexe na cartela nem gera punch
-            aviso = "Chopp de boas-vindas resgatado! Agora é só juntar pontos."
-
-        if marco_arvore:
-            aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
-                      f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
-
-        push = _notificar(consumidor, aviso)
-        storage.salvar_evento({
-            "id": str(uuid.uuid4()), "tipo": "resgate", "tipo_recompensa": tipo,
-            "telefone": telefone, "bar": bar, "garcom_id": garcom_id, "data": agora(),
-        })
-
-        return jsonify({
-            "status": "ok", "acao": "resgate", "tipo_resgatado": tipo,
-            "nome": consumidor["nome"],
-            "punches": consumidor["punches"], "meta": consumidor["meta"],
-            "recompensas_disponiveis": len(_disponiveis(consumidor)),
-            "mensagem_garcom": f"RESGATE — entregue 1 chopp grátis para {consumidor['nome']}.",
-            "push": push,
-        })
-
-    # ─────────── CAMINHO 2: sem recompensa -> PONTUA ───────────
+    nome = consumidor.get("nome", "")
     meta = int(consumidor["meta"])
+
+    if not acao:
+        r = _resumo_cliente(consumidor)
+        acao = "mate" if r["mate_pendente"] else "premio" if r["premio_pendente"] else "ponto"
+
+    def evento(tipo, **extra):
+        storage.salvar_evento({
+            "id": str(uuid.uuid4()), "tipo": tipo, "telefone": telefone, "bar": bar,
+            "garcom_id": garcom_id, "data": agora(), **extra,
+        })
+
+    def resposta(acao_feita, mensagem, push=None, **extra):
+        return jsonify({
+            "status": "ok", "acao": acao_feita, "mensagem_garcom": mensagem,
+            "cliente": _resumo_cliente(consumidor), "push": push,
+            # campos da base, mantidos para telas antigas
+            "nome": nome, "punches": int(consumidor.get("punches", 0)), "meta": meta,
+            "recompensas_disponiveis": len(_disponiveis(consumidor)), **extra,
+        })
+
+    # ─── MATE DA CASA (boas-vindas) ───
+    if acao == "mate":
+        if not _resgatar(consumidor, "boas_vindas", bar, garcom_id):
+            return jsonify({"erro": "mate_ja_retirado", "cliente": _resumo_cliente(consumidor)}), 409
+        consumidor["mate_retirado_em"] = agora()
+        _confirmar_indicacao(consumidor)
+        push = _notificar(consumidor, "Mate da casa retirado! Agora, a cada pedido com executivo, "
+                                      "mostre o cartão e ganhe 1 ponto.")
+        evento("resgate", tipo_recompensa="boas_vindas")
+        return resposta("resgate", f"Entregue o mate da casa para {nome}.", push,
+                        tipo_resgatado="boas_vindas")
+
+    # ─── EXECUTIVO GRATIS (premio) ───
+    if acao == "premio":
+        if not _resgatar(consumidor, "punch", bar, garcom_id):
+            return jsonify({"erro": "sem_premio", "cliente": _resumo_cliente(consumidor)}), 409
+        consumidor["punches"] = 0
+        consumidor["meta"] = int(config["punches_para_recompensa"])
+        consumidor["temporada"] = config["temporada_vigente"]
+        consumidor["ciclos_completos"] = consumidor.get("ciclos_completos", 0) + 1
+        push = _notificar(consumidor, "Executivo grátis resgatado! Bom apetite. "
+                                      f"Sua nova cartela já começou: 0/{consumidor['meta']}.")
+        evento("resgate", tipo_recompensa="punch")
+        return resposta("resgate", f"Executivo grátis para {nome}. Cartela zerada.", push,
+                        tipo_resgatado="punch")
+
+    # ─── BRINDE DE INDICACAO ───
+    if acao == "brinde":
+        st = regras.status_brindes(consumidor, config)
+        if not st["pendentes"]:
+            return jsonify({"erro": "sem_brinde", "cliente": _resumo_cliente(consumidor)}), 409
+        brinde = st["pendentes"][0]
+        consumidor.setdefault("brindes_entregues", []).append({
+            "qtd": brinde["qtd"], "nome": brinde["nome"], "entregue_em": agora(),
+            "bar": bar, "garcom_id": garcom_id,
+        })
+        push = _notificar(consumidor, f"{brinde['nome']} entregue! Obrigado por trazer os amigos ao Cotito.")
+        evento("brinde", brinde=brinde["nome"], qtd=brinde["qtd"])
+        return resposta("brinde", f"Entregue: {brinde['nome']} para {nome}.", push, brinde=brinde["nome"])
+
+    if acao != "ponto":
+        return jsonify({"erro": "acao_invalida"}), 400
+
+    # ─── PONTO (pedido com executivo) ───
+    if any(r.get("tipo") == "punch" for r in _disponiveis(consumidor)):
+        return jsonify({"erro": "cartela_cheia", "cliente": _resumo_cliente(consumidor)}), 409
+
+    libera = regras.proximo_ponto_em(consumidor, config)
+    if libera:
+        evento("ponto_bloqueado", ultimo=consumidor.get("ultimo_punch"))
+        return jsonify({
+            "erro": "bloqueio_ponto", "ultimo_ponto": consumidor.get("ultimo_punch"),
+            "proximo_ponto_em": libera.isoformat(),
+            "horas": regras.horas_bloqueio(config),
+            "cliente": _resumo_cliente(consumidor),
+        }), 409
+
     consumidor["punches"] = int(consumidor.get("punches", 0)) + 1
     consumidor["ultimo_punch"] = agora()
+    # contador vitalicio de executivos (nunca zera; o nome do campo vem da base)
+    consumidor["chopps_totais"] = consumidor.get("chopps_totais", 0) + 1
 
     fechou = consumidor["punches"] >= meta
-
     if fechou:
-        # a cartela NAO zera aqui. Ela trava cheia ate o resgate.
         consumidor["punches"] = meta
         consumidor["recompensas"].append({"tipo": "punch", "gerada_em": agora(), "resgatada": False})
         consumidor["recompensas_total"] = consumidor.get("recompensas_total", 0) + 1
-        aviso = ("Cartela fechada! Seu próximo chopp é por nossa conta. "
-                 "Chame o atendente para resgatar.")
+        aviso = "Parabéns! Seu próximo executivo é por nossa conta. Mostre este cartão no balcão."
+        msg = f"Cartela fechada: {nome} ganhou um executivo grátis. Avise o cliente."
     else:
         faltam = meta - consumidor["punches"]
-        aviso = f"Chopp registrado! Faltam {faltam} para o seu chopp grátis."
-
-    if marco_arvore:
-        aviso = (f"Você chegou a {marco_arvore} chopps! 🌳 Vamos plantar uma muda de "
-                  f"árvore da Mata Atlântica em seu nome, na Serra da Mantiqueira.")
+        aviso = f"+1 ponto! Faltam {faltam} para o executivo por nossa conta."
+        msg = f"Ponto registrado: {nome} está com {consumidor['punches']} de {meta}."
 
     push = _notificar(consumidor, aviso)
-
-    if fechou:
-        _creditar_indicador(consumidor)
-
-    storage.salvar_evento({
-        "id": str(uuid.uuid4()), "tipo": "punch", "telefone": telefone, "bar": bar,
-        "garcom_id": garcom_id, "recompensa_gerada": fechou, "data": agora(),
-    })
-
-    return jsonify({
-        "status": "ok", "acao": "punch",
-        "nome": consumidor["nome"],
-        "punches": consumidor["punches"], "meta": meta,
-        "recompensa_gerada": fechou,
-        "recompensas_disponiveis": len(_disponiveis(consumidor)),
-        "mensagem_garcom": (
-            f"CARTELA FECHADA — {consumidor['nome']} tem 1 chopp grátis. Avise o cliente."
-            if fechou else
-            f"Ponto registrado — {consumidor['nome']}: {consumidor['punches']} de {meta}."
-        ),
-        "push": push,
-    })
+    evento("punch", recompensa_gerada=fechou)
+    return resposta("punch", msg, push, recompensa_gerada=fechou)
 
 
 # rotas antigas continuam funcionando (o scanner atual ainda as usa)
@@ -607,7 +643,7 @@ def cartao(telefone):
         return jsonify({"erro": "falha_ao_gerar_cartao", "detalhe": str(e)}), 500
 
     return Response(dados, mimetype="application/vnd.apple.pkpass", headers={
-        "Content-Disposition": f'attachment; filename="clube-backbone-{telefone}.pkpass"',
+        "Content-Disposition": f'attachment; filename="clube-cotito-{telefone}.pkpass"',
         "Cache-Control": "no-store",
     })
 
@@ -1359,7 +1395,7 @@ def qr_universal(telefone):
     if not c:
         return Response("Cartao nao encontrado.", status=404, mimetype="text/plain")
     indicador = c.get("indicador", "") or ""
-    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+    destino = (f"{PAGES_URL}/cadastro.html"
                f"?indicador={quote(indicador)}&padrinho={tel}")
     return Response(status=302, headers={"Location": destino})
 
@@ -1377,7 +1413,7 @@ def qr_colab(colab_id):
     colab = storage.carregar_colab(colab_id)
     if not colab:
         return Response("Link invalido.", status=404, mimetype="text/plain")
-    destino = (f"https://hthoni.github.io/backbone/cadastro.html"
+    destino = (f"{PAGES_URL}/cadastro.html"
                f"?indicador={quote(colab.get('bar_id',''))}&colab={quote(colab_id)}")
     return Response(status=302, headers={"Location": destino})
 
@@ -1977,7 +2013,7 @@ def admin_estornar_desconto(desconto_id):
 
 @app.route("/")
 def health():
-    return jsonify({"status": "ok", "sistema": "Clube Backbone", "versao": 3})
+    return jsonify({"status": "ok", "sistema": "Clube Cotito", "versao": 1})
 
 
 # ══════════════════════════════════════════════════════════════
