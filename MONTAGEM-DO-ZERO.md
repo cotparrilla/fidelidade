@@ -27,6 +27,12 @@ conversa.** Vão só em variáveis de ambiente do Cloud Run (ou Secret Manager).
 
 ## 2. Google Cloud (projeto novo)
 
+**Cotito:** os passos 2 a 5 e 7 abaixo estão automatizados em `infra/montar-google-cloud.sh`
+(região São Paulo, serviço `fidelidade`, bucket `<projeto>-dados`, SECRET_KEY gerada sem
+aparecer na tela, primeiro login de dono). Rodar no Cloud Shell com o projeto selecionado:
+`bash <(curl -fsSL https://raw.githubusercontent.com/cotparrilla/fidelidade/main/infra/montar-google-cloud.sh)`.
+Depois, só falta o gatilho do Cloud Build (passo 6) e colar a URL em `config.js`.
+
 1. Criar um **projeto** (ex.: `fidelidade-restaurante`), com cobrança ativada.
 2. Ativar as APIs: Cloud Run, Cloud Build, Artifact Registry, Cloud Storage.
 3. Criar o **bucket** do Cloud Storage (região `us-central1` ou a mais próxima). Esse
