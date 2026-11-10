@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Admin</title>
+<title>Clube Cotito — Admin</title>
 <style>
   :root{
     --preto:#000; --preto2:#131313; --linha:#2B2B2B;
@@ -157,7 +157,7 @@
 <body>
 
 <header>
-  <img src="clube_logo.png" alt="Clube Backbone">
+  <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
   <div style="display:flex; align-items:center; gap:10px">
     <div class="t">ADMIN</div>
     <button class="btn sec" id="b-trocar-painel" style="display:none; width:auto; padding:8px 14px; font-size:12px; letter-spacing:.08em">TROCAR</button>
@@ -166,24 +166,24 @@
 </header>
 
 <nav>
-  <button class="on" data-aba="consumidores">Sócios</button>
+  <button class="on" data-aba="consumidores">Membros</button>
   <button data-aba="push">Push</button>
   <button data-aba="config">Configuração</button>
-  <button data-aba="bares">Bares</button>
-  <button data-aba="garcons">Garçons</button>
-  <button data-aba="gestores">Gestores</button>
+  <button data-aba="bares" style="display:none">Bares</button>
+  <button data-aba="garcons">Atendentes</button>
+  <button data-aba="gestores">Gerentes</button>
   <button data-aba="admins">Admins</button>
-  <button data-aba="colabs">Colabs</button>
-  <button data-aba="arvores">Árvores</button>
+  <button data-aba="colabs" style="display:none">Colabs</button>
+  <button data-aba="arvores" style="display:none">Árvores</button>
   <button data-aba="mensagens">Mensagens</button>
-  <button data-aba="reembolsos">Reembolsos</button>
+  <button data-aba="reembolsos" style="display:none">Reembolsos</button>
 </nav>
 
 <main>
 
 <!-- ══ SÓCIOS ══ -->
 <section class="aba on" id="aba-consumidores">
-  <h2>Sócios</h2>
+  <h2>Membros</h2>
   <div class="linha">
     <div style="max-width:280px">
       <label>BUSCAR SÓCIO</label>
@@ -215,7 +215,7 @@
 <!-- ══ PUSH ══ -->
 <section class="aba" id="aba-push">
   <h2>Push manual</h2>
-  <p class="sub">Envia uma notificação para o cartão de um sócio. Só chega para quem instalou o cartão na Wallet.</p>
+  <p class="sub">Envia uma notificação para o cartão de um membro. Só chega para quem instalou o cartão na Wallet.</p>
   <div class="cartao">
     <div class="linha">
       <div>
@@ -225,7 +225,7 @@
     </div>
     <div style="margin-bottom:14px">
       <label>TEXTO DO PUSH</label>
-      <textarea id="p-texto" rows="3" placeholder="Ex.: Hoje tem jogo do Flamengo no Backbone Partage!"></textarea>
+      <textarea id="p-texto" rows="3" placeholder="Ex.: Hoje o executivo tem sobremesa por nossa conta!"></textarea>
     </div>
     <button class="btn" id="b-push">Enviar push</button>
     <div class="msg" id="m-push"></div>
@@ -233,7 +233,7 @@
   <p class="mini">O texto substitui o campo "Último aviso" do verso do cartão e dispara a notificação. Textos repetidos não geram novo push — mude o texto para notificar de novo.</p>
 
   <h2 style="margin-top:30px">Push em massa</h2>
-  <p class="sub">Filtre os sócios como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
+  <p class="sub">Filtre os membros como numa planilha, revise a seleção e dispare para todos de uma vez.</p>
   <div class="cartao">
     <div style="overflow-x:auto">
       <table id="pm-tabela">
@@ -255,7 +255,7 @@
     <div class="msg" id="pm-contador" style="color:var(--ambar)"></div>
     <div style="margin:12px 0">
       <label>TEXTO DO PUSH</label>
-      <textarea id="pm-texto" rows="3" placeholder="Ex.: Hoje tem jogo no Backbone Partage!"></textarea>
+      <textarea id="pm-texto" rows="3" placeholder="Ex.: Novo executivo no cardápio esta semana!"></textarea>
     </div>
     <button class="btn" id="pm-enviar">Enviar</button>
     <div class="msg" id="pm-resultado"></div>
@@ -269,18 +269,22 @@
   <div class="cartao">
     <div class="linha">
       <div>
-        <label>META (CHOPPS PARA O PRÊMIO)</label>
+        <label>META (PONTOS PARA O EXECUTIVO GRÁTIS)</label>
         <input id="c-meta" type="number" min="1" max="30">
       </div>
       <div>
-        <label>TEMPORADA VIGENTE</label>
-        <input id="c-temporada" type="text" placeholder="ex.: padrao, mantiqueira, verao">
+        <label>HORAS ENTRE PONTOS DO MESMO CARTÃO</label>
+        <input id="c-bloqueio" type="number" min="0" max="24" step="0.5">
       </div>
     </div>
+    <label>BRINDES POR INDICAÇÃO (contam quando o indicado retira o mate; cumulativos, nesta ordem)</label>
+    <div id="c-brindes" style="display:flex; flex-direction:column; gap:8px; margin:6px 0 10px"></div>
+    <button class="btn sec" id="b-brinde-mais" style="width:auto; margin-bottom:16px">+ Adicionar brinde</button>
+    <input id="c-temporada" type="hidden">
     <button class="btn" id="b-config">Salvar configuração</button>
     <div class="msg" id="m-config"></div>
   </div>
-  <p class="mini">A temporada vigente define a pasta de artes da strip (server/strips/&lt;temporada&gt;/) para novos ciclos.</p>
+  <p class="mini">A meta vale para novas cartelas; quem está no meio da cartela termina na meta antiga. Brindes e horas valem na hora.</p>
 
   <h2 style="margin-top:30px">Telefones bloqueados</h2>
   <p class="sub">Números que não podem se associar (funcionários, listas passadas pelos donos dos bares). O cadastro é recusado sem revelar o motivo.</p>
@@ -320,7 +324,7 @@
       <button class="btn sec" id="b-atualizar">Atualizar</button>
     </div>
   </div>
-  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = cadastros do bar · Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = chopps de cartela cheia entregues.</p>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = cadastros do bar · Ativos = mate da casa retirado no balcão · Consumos = pedidos com executivo marcados · Resgates = executivos grátis entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr><th>NOME</th><th>CIDADE</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th></th></tr></thead>
@@ -332,35 +336,35 @@
     <div class="linha">
       <div>
         <label>ID (CÓDIGO)</label>
-        <input id="b-id" type="text" placeholder="Backbone_Partage">
+        <input id="b-id" type="text" placeholder="cotito">
       </div>
       <div>
         <label>NOME DE EXIBIÇÃO</label>
-        <input id="b-nome" type="text" placeholder="Backbone Partage">
+        <input id="b-nome" type="text" placeholder="Cotito">
       </div>
       <div>
         <label>CIDADE</label>
         <input id="b-cidade" type="text" placeholder="Rio de Janeiro">
       </div>
     </div>
-    <div class="mini" style="margin:-4px 0 14px">ID sem espaços nem acentos. Ex.: Backbone_Partage</div>
+    <div class="mini" style="margin:-4px 0 14px">ID sem espaços nem acentos. Ex.: cotito</div>
     <label for="b-pratos" style="display:flex; align-items:flex-start; gap:12px; background:#10203F; border:1px solid #2F62E6; border-radius:10px; padding:12px; cursor:pointer; margin:0 0 14px; text-transform:none; letter-spacing:0; font-size:14px">
       <input id="b-pratos" type="checkbox" style="width:22px; height:22px; margin:2px 0 0; accent-color:#2F62E6; flex-shrink:0">
       <span style="display:flex; flex-direction:column; gap:3px">
         <span style="font-size:15px; font-weight:800; color:#FFF">Aceita pratos</span>
-        <span style="font-size:13px; color:#CFE0FF; line-height:1.4; font-weight:400">Liga o botão "Escanear prato" para os garçons deste bar. Os colabs deste bar ganham 1 prato executivo a cada 10 pratos dos indicados.</span>
+        <span style="font-size:13px; color:#CFE0FF; line-height:1.4; font-weight:400">Liga o botão "Escanear prato" para os atendentes deste bar. Os colabs deste bar ganham 1 prato executivo a cada 10 pratos dos indicados.</span>
       </span>
     </label>
     <button class="btn" id="b-criar-bar">Criar bar</button>
     <button class="btn sec" id="b-cancelar-bar" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <div class="msg" id="m-bar"></div>
   </div>
-  <p class="mini">⚠️ O ID deve ser idêntico ao usado no campo "Indicador" do BotConversa e no bar_id dos garçons. Maiúsculas contam.</p>
+  <p class="mini">⚠️ O ID deve ser idêntico ao usado no campo "Indicador" do BotConversa e no bar_id dos atendentes. Maiúsculas contam.</p>
 </section>
 
 <!-- ══ GARÇONS ══ -->
 <section class="aba" id="aba-garcons">
-  <h2>Garçons</h2>
+  <h2>Atendentes</h2>
   <div class="linha">
     <div style="max-width:200px">
       <label>JANELA (DIAS)</label>
@@ -378,7 +382,7 @@
       <input id="g-busca" type="text" placeholder="nome…">
     </div>
   </div>
-  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Ativos = chopp de boas-vindas confirmado no bar · Consumos = chopps pagos marcados · Resgates = prêmios de meta entregues.</p>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Ativos = mate da casa retirado no balcão · Consumos = pedidos com executivo marcados · Resgates = executivos grátis entregues.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">ATIVOS</th><th class="num">CONSUMOS</th><th class="num">RESGATES</th><th>STATUS</th><th></th></tr></thead>
@@ -386,7 +390,7 @@
     </table>
   </div>
   <div class="cartao">
-    <h2 style="font-size:16px" id="garcom-form-titulo">Novo garçom</h2>
+    <h2 style="font-size:16px" id="garcom-form-titulo">Novo atendente</h2>
     <div class="linha">
       <div>
         <label>ID DE LOGIN (ex.: g01)</label>
@@ -398,7 +402,7 @@
       </div>
       <div>
         <label>SENHA</label>
-        <input id="g-senha" type="text" placeholder="senha do garçom">
+        <input id="g-senha" type="text" placeholder="senha do atendente">
       </div>
       <div>
         <label>TELEFONE</label>
@@ -409,7 +413,7 @@
         <select id="g-bar"></select>
       </div>
     </div>
-    <button class="btn" id="b-criar-garcom">Criar garçom</button>
+    <button class="btn" id="b-criar-garcom">Criar atendente</button>
     <button class="btn sec" id="b-cancelar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px">Cancelar edição</button>
     <button class="btn sec" id="b-alternar-garcom" style="display:none; width:auto; margin-left:8px; padding:13px 22px; border-color:var(--rubro); color:var(--rubro)"></button>
     <div class="msg" id="m-garcom"></div>
@@ -419,7 +423,7 @@
 <!-- ══ GESTORES ══ -->
 <section class="aba" id="aba-gestores">
   <h2>Gestores</h2>
-  <p class="sub">Usuários do painel do dono/gerente do bar (Histórico, Atual, Atividade, Garçons). Um gestor pode administrar mais de um bar.</p>
+  <p class="sub">Usuários do painel do dono/gerente do bar (Histórico, Atual, Atividade, Atendentes). Um gestor pode administrar mais de um bar.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr><th>NOME</th><th>TELEFONE</th><th>BARES</th><th>STATUS</th><th></th></tr></thead>
@@ -507,7 +511,7 @@
       <button class="btn sec" id="b-colabs-atualizar">Atualizar</button>
     </div>
   </div>
-  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = chopp de boas-vindas confirmado no bar.</p>
+  <p class="mini" style="margin:-6px 0 14px">Cada célula mostra <strong>últimos X dias / total</strong>. Cadastros = fichas originadas pelo QR do colab · Ativos = mate da casa retirado no balcão.</p>
   <div class="cartao" style="padding:0; overflow-x:auto">
     <table>
       <thead><tr><th>NOME</th><th>TELEFONE</th><th>BAR</th><th class="num">CADASTROS</th><th class="num">ATIVOS</th><th class="num">PRATOS</th><th>STATUS</th><th></th></tr></thead>
@@ -548,7 +552,7 @@
 <!-- ══ ÁRVORES ══ -->
 <section class="aba" id="aba-arvores">
   <h2>Árvores</h2>
-  <p class="sub">Sócios que cruzaram um múltiplo de 100 chopps (vitalício) e ainda esperam a muda ser plantada na Serra da Mantiqueira. Marcar aqui não envia push — o aviso de "foi plantada" é feito por você, manualmente.</p>
+  <p class="sub">Membros que cruzaram um múltiplo de 100 chopps (vitalício) e ainda esperam a muda ser plantada na Serra da Mantiqueira. Marcar aqui não envia push — o aviso de "foi plantada" é feito por você, manualmente.</p>
   <div class="linha">
     <div style="flex:0">
       <button class="btn sec" id="b-arvores-recarregar">Recarregar</button>
@@ -568,7 +572,7 @@
 <!-- ══ MENSAGENS ══ -->
 <section class="aba" id="aba-mensagens">
   <h2>Mensagens</h2>
-  <p class="sub">Pedidos de resgate e dúvidas enviados pelos sócios na página de perfil deles. Marque como lida quando já tiver tomado providência.</p>
+  <p class="sub">Pedidos de resgate e dúvidas enviados pelos membros na página de perfil deles. Marque como lida quando já tiver tomado providência.</p>
   <div class="linha">
     <div style="max-width:280px">
       <label>FILTRAR POR TELEFONE</label>
@@ -666,8 +670,10 @@
 
 </main>
 
+<script src="config.js"></script>
+<script src="auth.js" data-chaves="bb_admin"></script>
 <script>
-const API = "https://backbone-650557630362.us-central1.run.app";
+const API = window.COTITO_API;
 const $ = id => document.getElementById(id);
 
 /* ── acesso: exige login de admin ── */
@@ -701,7 +707,7 @@ function irParaAba(nomeAba){
   $("aba-" + nomeAba).classList.add("on");
 }
 
-/* ── sócios ── */
+/* ── membros ── */
 let consumidoresLista = [];
 let socFiltros = {}; // campo -> Set de valores aceitos (ausente = todos)
 
@@ -800,7 +806,7 @@ function renderConsumidores(){
   const tb = $("t-consumidores");
   const lista = socFiltrados();
   if(!lista.length){
-    tb.innerHTML = '<tr><td colspan="13" class="carregando">Nenhum sócio encontrado.</td></tr>';
+    tb.innerHTML = '<tr><td colspan="13" class="carregando">Nenhum membro encontrado.</td></tr>';
     $("resumo").textContent = "";
     return;
   }
@@ -827,7 +833,7 @@ function renderConsumidores(){
     </tr>`;
   }).join("");
   const totIndicados = lista.filter(c => c.padrinho).length;
-  $("resumo").textContent = lista.length + " sócios (de " + consumidoresLista.length + " no total) · " +
+  $("resumo").textContent = lista.length + " membros (de " + consumidoresLista.length + " no total) · " +
     totIndicados + " vieram por indicação";
 }
 $("b-recarregar").onclick = carregarConsumidores;
@@ -850,7 +856,7 @@ $("b-push").onclick = async () => {
     m.className = "msg ok";
     m.textContent = d.enviados > 0
       ? "Push enviado para " + d.enviados + " dispositivo(s)."
-      : "Aviso gravado, mas nenhum dispositivo registrado — o sócio ainda não instalou o cartão.";
+      : "Aviso gravado, mas nenhum dispositivo registrado — o membro ainda não instalou o cartão.";
   }catch(e){ m.className = "msg erro"; m.textContent = "Sem conexão."; }
 };
 
@@ -860,14 +866,32 @@ async function carregarConfig(){
     const r = await fetch(API + "/admin/config");
     const c = await r.json();
     $("c-meta").value = c.punches_para_recompensa ?? 10;
-    $("c-temporada").value = c.temporada_vigente ?? "padrao";
+    $("c-temporada").value = c.temporada_vigente ?? "estilos";
+    $("c-bloqueio").value = c.bloqueio_ponto_horas ?? 2;
+    $("c-brindes").innerHTML = "";
+    (c.brindes_indicacao || []).forEach(b => linhaBrinde(b.qtd, b.nome));
   }catch(e){}
 }
+function linhaBrinde(qtd, nome){
+  const d = document.createElement("div");
+  d.className = "linha"; d.style.margin = "0";
+  d.innerHTML = `<div style="max-width:140px"><input type="number" min="1" class="br-qtd" placeholder="indicações" value="${qtd ?? ""}"></div>
+    <div><input type="text" class="br-nome" placeholder="ex.: Boné" value="${(nome ?? "").replace(/"/g, "&quot;")}"></div>
+    <div style="flex:0"><button class="btn sec" style="width:auto" title="Remover">×</button></div>`;
+  d.querySelector("button").onclick = () => d.remove();
+  $("c-brindes").appendChild(d);
+}
+$("b-brinde-mais").onclick = () => linhaBrinde("", "");
 $("b-config").onclick = async () => {
   const m = $("m-config");
   const corpo = {
     punches_para_recompensa: parseInt($("c-meta").value || "10", 10),
-    temporada_vigente: ($("c-temporada").value || "padrao").trim()
+    temporada_vigente: ($("c-temporada").value || "estilos").trim(),
+    bloqueio_ponto_horas: parseFloat($("c-bloqueio").value || "2"),
+    brindes_indicacao: [...document.querySelectorAll("#c-brindes .linha")].map(l => ({
+      qtd: parseInt(l.querySelector(".br-qtd").value, 10),
+      nome: l.querySelector(".br-nome").value.trim(),
+    })).filter(b => b.qtd > 0 && b.nome),
   };
   m.className = "msg"; m.textContent = "Salvando…";
   try{
@@ -876,7 +900,8 @@ $("b-config").onclick = async () => {
       body: JSON.stringify(corpo)
     });
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = "Configuração salva. Vale para novos cadastros e novos ciclos.";
+    m.className = "msg ok"; m.textContent = "Configuração salva.";
+    carregarConfig();
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
 
@@ -1009,7 +1034,7 @@ $("b-criar-bar").onclick = async () => {
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
 };
 
-/* ── garçons ── */
+/* ── atendentes ── */
 let garconsLista = [];
 let garconsStats = {};
 let gestoresParaGarcons = [];
@@ -1081,7 +1106,7 @@ function renderGarcons(){
         <td>${statusCel}</td>
         <td>${acoesCel}</td>
       </tr>`;}).join("")
-    : '<tr><td colspan="8" class="carregando">Nenhum garçom encontrado.</td></tr>';
+    : '<tr><td colspan="8" class="carregando">Nenhum atendente encontrado.</td></tr>';
 }
 $("g-filtro-bar").onchange = renderGarcons;
 $("g-busca").oninput = renderGarcons;
@@ -1097,19 +1122,19 @@ function editarGarcom(id){
   $("g-senha").placeholder = "deixe em branco para manter a atual";
   $("g-tel").value = g.telefone || "";
   $("g-bar").value = g.bar_id || "";
-  $("garcom-form-titulo").textContent = "Editar garçom — " + g.id;
+  $("garcom-form-titulo").textContent = "Editar atendente — " + g.id;
   $("b-criar-garcom").textContent = "Salvar alterações";
   $("b-cancelar-garcom").style.display = "inline-block";
   $("b-alternar-garcom").style.display = "inline-block";
-  $("b-alternar-garcom").textContent = (g.ativo === false) ? "Ativar garçom" : "Desativar garçom";
+  $("b-alternar-garcom").textContent = (g.ativo === false) ? "Ativar atendente" : "Desativar atendente";
   $("aba-garcons").scrollIntoView({behavior:"smooth", block:"start"});
 }
 function cancelarEdicaoGarcom(){
   editandoGarcomId = null;
   $("g-id").value = ""; $("g-id").disabled = false;
-  $("g-nome").value = ""; $("g-senha").value = ""; $("g-senha").placeholder = "senha do garçom"; $("g-tel").value = "";
-  $("garcom-form-titulo").textContent = "Novo garçom";
-  $("b-criar-garcom").textContent = "Criar garçom";
+  $("g-nome").value = ""; $("g-senha").value = ""; $("g-senha").placeholder = "senha do atendente"; $("g-tel").value = "";
+  $("garcom-form-titulo").textContent = "Novo atendente";
+  $("b-criar-garcom").textContent = "Criar atendente";
   $("b-cancelar-garcom").style.display = "none";
   $("b-alternar-garcom").style.display = "none";
   $("m-garcom").textContent = "";
@@ -1158,11 +1183,11 @@ $("b-criar-garcom").onclick = async () => {
     });
     if(r.status === 409){
       const d = await r.json();
-      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um sócio.";
+      m.className = "msg erro"; m.textContent = d.detalhe || "Telefone pertence a um membro.";
       return;
     }
     if(!r.ok) throw 0;
-    m.className = "msg ok"; m.textContent = editandoGarcomId ? "Garçom atualizado." : "Garçom criado. Login: " + id;
+    m.className = "msg ok"; m.textContent = editandoGarcomId ? "Atendente atualizado." : "Atendente criado. Login: " + id;
     cancelarEdicaoGarcom();
     carregarGarcons();
   }catch(e){ m.className = "msg erro"; m.textContent = "Não foi possível salvar."; }
@@ -1704,7 +1729,7 @@ function renderMensagens(){
 
   if(!lista.length){
     tb.innerHTML = '<tr><td colspan="6" class="carregando">' +
-      (mensagensFiltroTel ? "Nenhuma mensagem deste sócio." : "Nenhuma mensagem recebida ainda.") +
+      (mensagensFiltroTel ? "Nenhuma mensagem deste membro." : "Nenhuma mensagem recebida ainda.") +
       '</td></tr>';
   } else {
     tb.innerHTML = lista.map(m => {
@@ -1725,7 +1750,7 @@ function renderMensagens(){
       </tr>`;
     }).join("");
   }
-  $("mensagens-resumo").textContent = telefonesComMensagemNaoLida.size + " sócio(s) com mensagem pendente.";
+  $("mensagens-resumo").textContent = telefonesComMensagemNaoLida.size + " membro(s) com mensagem pendente.";
   $("msg-filtro-tel").value = mensagensFiltroTel;
 }
 
@@ -1905,7 +1930,7 @@ function confirmarExclusao(titulo, texto, url, aoTerminar){
 
 function apagarConsumidor(tel, nome){
   confirmarExclusao(
-    "Apagar sócio?",
+    "Apagar membro?",
     (nome || tel) + " (" + tel + ") será removido para sempre, junto com o registro de push. O cartão na Wallet dele deixa de atualizar.",
     "/admin/consumidores/" + tel,
     carregarConsumidores
@@ -1914,14 +1939,14 @@ function apagarConsumidor(tel, nome){
 function apagarBar(id){
   confirmarExclusao(
     "Apagar bar?",
-    "O bar " + id + " será removido. Garçons e sócios vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
+    "O bar " + id + " será removido. Atendentes e membros vinculados a ele NÃO são apagados, mas o scan deles passa a falhar.",
     "/admin/bares/" + id,
     carregarBares
   );
 }
 function apagarGarcom(id, nome){
   confirmarExclusao(
-    "Apagar garçom?",
+    "Apagar atendente?",
     (nome || id) + " perde o acesso ao scanner imediatamente.",
     "/admin/garcons/" + id,
     carregarGarcons
@@ -2025,7 +2050,7 @@ function pmRender(){
   const lista = pmFiltrados();
   const corpo = $("pm-corpo");
   if(!lista.length){
-    corpo.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum sócio passa nos filtros.</td></tr>';
+    corpo.innerHTML = '<tr><td colspan="11" class="carregando">Nenhum membro passa nos filtros.</td></tr>';
   } else {
     corpo.innerHTML = lista.map(c => {
       const marcado = !pmDesmarcados.has(c.telefone);
@@ -2076,7 +2101,7 @@ $("pm-enviar").onclick = async () => {
   const texto = $("pm-texto").value.trim();
   const m = $("pm-resultado");
   if(!tels.length || !texto){
-    m.className = "msg erro"; m.textContent = "Selecione sócios e escreva o texto."; return;
+    m.className = "msg erro"; m.textContent = "Selecione membros e escreva o texto."; return;
   }
   m.className = "msg"; m.textContent = "Enviando para " + tels.length + "…";
   try{

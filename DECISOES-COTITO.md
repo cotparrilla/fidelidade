@@ -79,10 +79,27 @@ decisões. Não pergunte de novo o que está aqui.
 - Tom de voz: bem-humorado, objetivo, desejável e próximo; frases curtas.
 - Pendentes: logo e ícone do boi em vetor (SVG/PDF).
 
-## Segurança (obrigatório antes de cadastrar clientes de verdade)
+## O que já está no código
 
-- A base guarda senhas em texto puro e as rotas `/admin/*` e `/bar/*` não exigem token.
-  Antes de abrir ao público: senhas com hash e token de sessão exigido no servidor.
+- Servidor: `server/regras.py` + `/scan` com `acao` (ponto, mate, premio, brinde); sem `acao`
+  faz o pendente na ordem mate > prêmio > ponto. `/consumidor/<tel>` devolve `resumo` com
+  tudo que as telas precisam (pendências, bloqueio, trilha de brindes).
+- Telas novas com a marca: `cadastro.html`, `perfil.html` (Meus dados), `scanner.html`
+  (balcão), estilo em `cotito.css`. O scanner embutido do gestor agora abre o `scanner.html`.
+- Painel do dono: abas de rede de bares escondidas (Bares, Colabs, Árvores, Reembolsos);
+  Configuração edita meta, horas entre pontos e degraus de brinde.
+- A unidade `cotito` é criada sozinha na primeira consulta de `/admin/bares`.
+- Ainda com cara da base (visual escuro, funcionais): `admin.html`, `gestor.html`,
+  `login.html`, `escolha.html`. `meucartao.html` e `como_funciona.html` são da Backbone e
+  não são usados.
+
+## Segurança
+
+- Feito: senhas com hash e token de sessão exigido no servidor (`server/auth.py`,
+  `auth.js`). Detalhes na seção 3 do `CLAUDE.md`. Variável nova no Cloud Run: `SECRET_KEY`.
+- Ainda aberto: `/consumidor/<telefone>` é público (as telas do cliente precisam dele) e
+  devolve nome e aniversário a quem souber o telefone. Rever quando adaptarmos as telas
+  do cliente.
 
 ## Contas
 

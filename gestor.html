@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Painel do gestor</title>
+<title>Clube Cotito — Painel do gestor</title>
 <style>
   :root{
     --preto:#000; --preto2:#141414; --linha:#2B2B2B;
@@ -99,7 +99,7 @@
   }
   .abas button.on{color:#FFF; border-bottom-color:var(--rubro)}
 
-  /* ── FEED (Atividade / detalhe do garçom) ── */
+  /* ── FEED (Atividade / detalhe do atendente) ── */
   .feed{padding:14px 18px; overflow-y:auto; flex:1}
   .lote{background:#141414; border:1px solid #2B2B2B; border-radius:12px; padding:12px 14px; margin-bottom:10px}
   .lote .l1{font-size:16px; font-weight:800; color:#FFF}
@@ -215,7 +215,7 @@
 <!-- ══ LOGIN ══ -->
 <section id="t-login" class="tela on">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div class="id">PAINEL DO GESTOR</div>
   </div>
   <div class="login">
@@ -232,7 +232,7 @@
 <!-- ══ SELEÇÃO DE BAR ══ -->
 <section id="t-selecao" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div class="topo-acoes">
       <div class="id" id="sel-nome"></div>
       <button class="sair" id="b-sair-sel">SAIR</button>
@@ -247,7 +247,7 @@
 <!-- ══ DASHBOARD ══ -->
 <section id="t-dash" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div class="topo-acoes">
       <div class="id" id="dash-nome"></div>
       <button class="trocar" id="b-painel" style="display:none" aria-label="Voltar para escolha de painel" title="Voltar para escolha de painel">
@@ -268,7 +268,7 @@
     <button data-aba="historico" id="ab-historico">Histórico</button>
     <button data-aba="atual" id="ab-atual">Atual</button>
     <button data-aba="atividade" id="ab-atividade">Atividade</button>
-    <button data-aba="reembolso" id="ab-reembolso">Reembolso</button>
+    <button data-aba="reembolso" id="ab-reembolso" style="display:none">Reembolso</button>
     <button data-aba="scanner" id="ab-scanner">Scanner</button>
   </div>
 
@@ -340,7 +340,7 @@
 <!-- ══ DETALHE DO GARÇOM (só chega aqui tocando no card, na aba Atual) ══ -->
 <section id="t-detalhe" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div class="topo-acoes">
       <button class="sair" id="b-sair-det">SAIR</button>
     </div>
@@ -360,21 +360,21 @@
 <!-- ══ NOVO GARÇOM ══ -->
 <section id="t-novo-garcom" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <button class="sair" id="b-fechar-novo-garcom">CANCELAR</button>
   </div>
   <div class="conteudo">
-    <h1 style="font-size:22px; font-weight:800; margin-bottom:4px">Novo garçom</h1>
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:4px">Novo atendente</h1>
     <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:20px">Bar: <strong id="ng-bar-nome" style="color:var(--branco)"></strong></p>
 
     <label for="ng-id">ID DE LOGIN (ex.: g01)</label>
     <input id="ng-id" type="text" autocapitalize="none" placeholder="g01">
 
     <label for="ng-nome">NOME</label>
-    <input id="ng-nome" type="text" placeholder="Nome do garçom">
+    <input id="ng-nome" type="text" placeholder="Nome do atendente">
 
     <label for="ng-senha">SENHA</label>
-    <input id="ng-senha" type="text" placeholder="senha do garçom">
+    <input id="ng-senha" type="text" placeholder="senha do atendente">
 
     <label for="ng-tel">TELEFONE</label>
     <input id="ng-tel" type="tel" placeholder="5521999998888">
@@ -387,13 +387,13 @@
 <!-- ══ QR DE ACESSO DO NOVO GARÇOM ══ -->
 <section id="t-qr-garcom" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
   </div>
   <div class="conteudo" style="align-items:center; text-align:center">
-    <h1 style="font-size:22px; font-weight:800; margin-bottom:6px">Garçom criado!</h1>
+    <h1 style="font-size:22px; font-weight:800; margin-bottom:6px">Atendente criado!</h1>
     <p style="font-size:14px; color:var(--cinza-txt); margin-bottom:22px" id="qrg-nome"></p>
     <img id="qrg-img" alt="QR de acesso ao login" style="width:220px; height:220px; border-radius:12px; background:#FFF; padding:10px; margin:0 auto 18px; display:block">
-    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px">Peça pro garçom escanear esse QR no celular dele — cai direto na tela de login.</p>
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px">Peça pro atendente escanear esse QR no celular dele — cai direto na tela de login.</p>
     <div style="background:var(--preto2); border:1px solid var(--linha); border-radius:10px; padding:10px 12px; font-size:12px; color:var(--cinza-txt); word-break:break-all; margin-bottom:18px" id="qrg-link"></div>
     <button class="btn btn-2" id="b-copiar-link-garcom" style="margin-bottom:12px">Copiar link</button>
     <button class="btn btn-1" id="b-concluir-garcom">Concluir</button>
@@ -403,7 +403,7 @@
 <!-- ══ NOVO / EDITAR COLAB (gestão pelo próprio bar, sem admin) ══ -->
 <section id="t-colab" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <button class="sair" id="b-fechar-colab">CANCELAR</button>
   </div>
   <div class="conteudo">
@@ -432,13 +432,13 @@
 <!-- ══ QR DE INDICAÇÃO DO COLAB ══ -->
 <section id="t-qr-colab" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
   </div>
   <div class="conteudo" style="align-items:center; text-align:center">
     <h1 style="font-size:22px; font-weight:800; margin-bottom:6px" id="qrc-titulo">QR de indicação</h1>
     <p style="font-size:14px; color:var(--cinza-txt); margin-bottom:22px" id="qrc-nome"></p>
     <img id="qrc-img" alt="QR de indicação do colab" style="width:220px; height:220px; border-radius:12px; background:#FFF; padding:10px; margin:0 auto 18px; display:block">
-    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px; line-height:1.45">Imprima e entregue ao colab. Cliente novo escaneia para se cadastrar; o garçom escaneia o mesmo QR para entregar o prato grátis do colab.</p>
+    <p style="font-size:13px; color:var(--cinza-txt); margin-bottom:8px; line-height:1.45">Imprima e entregue ao colab. Cliente novo escaneia para se cadastrar; o atendente escaneia o mesmo QR para entregar o prato grátis do colab.</p>
     <div style="background:var(--preto2); border:1px solid var(--linha); border-radius:10px; padding:10px 12px; font-size:12px; color:var(--cinza-txt); word-break:break-all; margin-bottom:18px" id="qrc-link"></div>
     <button class="btn btn-2" id="b-copiar-link-colab" style="margin-bottom:12px">Copiar link</button>
     <button class="btn btn-1" id="b-concluir-colab">Concluir</button>
@@ -446,8 +446,10 @@
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="auth.js" data-chaves="bb_gestor,bb_admin"></script>
 <script>
-const API = "https://backbone-650557630362.us-central1.run.app";
+const API = window.COTITO_API;
 const $ = id => document.getElementById(id);
 
 let gestor = null;       // {gestor_id, nome, bares:[{id,nome}]}
@@ -492,7 +494,7 @@ function linhaFeed(e){
   return `<div class="lote">
     <div class="l1">${e.nome}${tag}</div>${colab}
     <div class="l2">${horaLocal(e.data)}</div>
-    <div class="l3">Garçom: ${e.garcom}</div>
+    <div class="l3">Atendente: ${e.garcom}</div>
   </div>`;
 }
 
@@ -511,12 +513,12 @@ $("b-entrar").onclick = async () => {
     const d = await r.json();
     if(!r.ok){
       $("erro-login").textContent = d.erro === "gestor_inativo"
-        ? "Seu acesso está desativado. Fale com a Backbone."
+        ? "Seu acesso está desativado. Fale com o Cotito."
         : "Código ou senha incorretos.";
       return;
     }
     if(!d.bares || !d.bares.length){
-      $("erro-login").textContent = "Seu usuário não tem nenhum bar vinculado. Fale com a Backbone.";
+      $("erro-login").textContent = "Seu usuário não tem nenhum bar vinculado. Fale com o Cotito.";
       return;
     }
     gestor = d;
@@ -607,7 +609,7 @@ $("b-painel").onclick = () => { location.href = "escolha.html"; };
 
 function gridMetricas(t){
   return `<div class="grid-metricas">
-    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Membro</span></div>
     <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
     <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
   </div>`;
@@ -615,7 +617,7 @@ function gridMetricas(t){
 function gridMetricasComFicha(t){
   return `<div class="grid-metricas" style="grid-template-columns:repeat(4,1fr)">
     <div class="metrica"><span class="n">${t.fichas ?? 0}</span><span class="r">Ficha</span></div>
-    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Sócio</span></div>
+    <div class="metrica"><span class="n">${t.cadastros}</span><span class="r">Membro</span></div>
     <div class="metrica"><span class="n">${t.pontuacao}</span><span class="r">Pontos</span></div>
     <div class="metrica"><span class="n">${t.resgates}</span><span class="r">Resgate</span></div>
   </div>`;
@@ -625,6 +627,12 @@ function gridMetricasComFicha(t){
 let atividadeTimer = null;
 
 function mudarAba(aba, manterMes){
+  if(aba === "scanner"){
+    // o balcão usa a mesma tela dos atendentes (regras do Cotito: ponto, mate, prêmio, brinde)
+    location.href = "scanner.html?gestor_id=" + encodeURIComponent(gestor.gestor_id) +
+      "&nome=" + encodeURIComponent(gestor.nome || "") + "&bar_id=" + encodeURIComponent((barAtivo && barAtivo.id !== "*") ? barAtivo.id : "cotito");
+    return;
+  }
   document.querySelectorAll(".abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
   document.querySelectorAll(".aba-conteudo").forEach(c => c.style.display = "none");
   $("aba-" + aba).style.display = (aba === "scanner") ? "flex" : "block";
@@ -707,7 +715,7 @@ async function carregarReembolso(){
           <div>TOTAIS</div><div style="text-align:right; color:#FF6B6B">${t.distribuidos}</div><div style="text-align:right; color:#5FD08A">${t.reembolsados}</div><div style="text-align:right; color:var(--ambar)">${t.saldo}</div>
         </div>
       </div>
-      <p style="font-size:13px; line-height:1.5; color:var(--cinza-txt); margin-top:12px">Entrada: chopps grátis dados aos clientes do seu bar (somados por mês). Saída: chopps já descontados na compra de barris. Dúvidas sobre um desconto? Fale com a Backbone.</p>`;
+      <p style="font-size:13px; line-height:1.5; color:var(--cinza-txt); margin-top:12px">Entrada: chopps grátis dados aos clientes do seu bar (somados por mês). Saída: chopps já descontados na compra de barris. Dúvidas sobre um desconto? Fale com o Cotito.</p>`;
   }catch(e){
     alvo.innerHTML = '<div class="carregando">Erro ao carregar. Tente de novo.</div>';
   }
@@ -785,15 +793,15 @@ async function carregarAtual(){
         <div class="titulo">${barAtivo.nome}</div>
         ${gridMetricasComFicha(d.totais)}
       </div>
-      <div class="titulo-secao">Por garçom</div>`;
+      <div class="titulo-secao">Por atendente</div>`;
 
     html += garconsAtuais.length ? garconsAtuais.map(g => `<div class="card" onclick='abrirDetalheGarcom("${g.garcom_id}")'>
         <div class="titulo">${g.nome}</div>
         ${gridMetricas(g)}
-      </div>`).join("") : '<div class="carregando">Nenhum garçom com movimento neste mês.</div>';
+      </div>`).join("") : '<div class="carregando">Nenhum atendente com movimento neste mês.</div>';
 
     if(barAtivo.id !== "*"){
-      html += `<button class="btn" id="b-adicionar-garcom" style="background:var(--verde); color:#fff; margin:6px 0 0">+ Adicionar Garçom</button>`;
+      html += `<button class="btn" id="b-adicionar-garcom" style="background:var(--verde); color:#fff; margin:6px 0 0">+ Adicionar Atendente</button>`;
     }
 
     // ── Colabs do bar: o gestor cria, edita e imprime o QR sem precisar do admin ──
@@ -831,7 +839,7 @@ async function carregarAtual(){
   }
 }
 
-/* ── Adicionar garçom (rodapé da aba Atual, só em bar real) ── */
+/* ── Adicionar atendente (rodapé da aba Atual, só em bar real) ── */
 $("b-fechar-novo-garcom").onclick = () => mostrar("dash");
 
 $("b-salvar-novo-garcom").onclick = async () => {
@@ -1004,7 +1012,7 @@ $("b-copiar-link-colab").onclick = async () => {
 };
 $("b-concluir-colab").onclick = () => mostrar("dash");
 
-/* ══ FEED GENÉRICO (Atividade da aba, e detalhe do garçom) — scroll infinito em blocos de 30 ══ */
+/* ══ FEED GENÉRICO (Atividade da aba, e detalhe do atendente) — scroll infinito em blocos de 30 ══ */
 const feedEstado = {}; // chave -> {offset, temMais, carregando}
 
 async function carregarFeedGenerico(chave, opts, reset){

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Escolher painel</title>
+<title>Clube Cotito — Escolher painel</title>
 <style>
   :root{
     --preto:#000; --preto2:#141414; --linha:#2B2B2B;
@@ -43,7 +43,7 @@
 <body>
 
 <div class="cab">
-  <img src="clube_logo.png" alt="Clube Backbone">
+  <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
   <button class="sair" id="b-sair">SAIR</button>
 </div>
 
@@ -52,7 +52,7 @@
 
   <a class="opcao" href="admin.html">
     <div class="titulo">Administração</div>
-    <div class="desc">Associados, push, configuração, bares, garçons e gestores.</div>
+    <div class="desc">Associados, push, configuração, bares, atendentes e gestores.</div>
   </a>
 
   <a class="opcao gestor" href="#" id="op-gestor">
@@ -61,6 +61,8 @@
   </a>
 </div>
 
+<script src="config.js"></script>
+<script src="auth.js" data-chaves="bb_admin"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -73,7 +75,7 @@ const $ = id => document.getElementById(id);
   }catch(e){ location.href = "login.html"; }
 })();
 
-const API = "https://backbone-650557630362.us-central1.run.app";
+const API = window.COTITO_API;
 
 $("op-gestor").onclick = async (ev) => {
   ev.preventDefault();

@@ -19,15 +19,17 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization.pkcs7 import PKCS7Options
 
 import certs
+import regras
 
-PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "pass.com.backbonecervejaria.clube")
-TEAM_ID = os.environ.get("APPLE_TEAM_ID", "43BNWL8WH7")
-ORG_NAME = os.environ.get("ORG_NAME", "Backbone Cervejaria Artesanal")
-WEB_SERVICE_URL = os.environ.get("WEB_SERVICE_URL", "https://backbone-650557630362.us-central1.run.app")
-CARDAPIO_URL = os.environ.get("CARDAPIO_URL", "https://hthoni.github.io/backbone/")
+PASS_TYPE_ID = os.environ.get("PASS_TYPE_ID", "")
+TEAM_ID = os.environ.get("APPLE_TEAM_ID", "")
+ORG_NAME = os.environ.get("ORG_NAME", "Cotito")
+WEB_SERVICE_URL = os.environ.get("WEB_SERVICE_URL", "")
+PAGES_URL = os.environ.get("PAGES_URL", "https://cotparrilla.github.io/fidelidade").rstrip("/")
+CARDAPIO_URL = os.environ.get("CARDAPIO_URL", "")       # vazio = sem link de cardapio no verso
 
-PERFIL_URL = os.environ.get("PERFIL_URL", "https://hthoni.github.io/backbone/perfil.html")
-LOJA_URL = os.environ.get("LOJA_URL", "https://cervejabackbone.com.br/?utm_source=wallet")
+PERFIL_URL = os.environ.get("PERFIL_URL", f"{PAGES_URL}/perfil.html")
+LOJA_URL = os.environ.get("LOJA_URL", "")               # vazio = sem botao de loja (iOS 27)
 
 BASE = os.path.dirname(__file__)
 TEMPLATE_DIR = os.path.join(BASE, "pass_template")   # icon.png, logo.png, primaryLogo.png e @2x/@3x
@@ -50,13 +52,6 @@ CORES_PADRAO = {
 }
 CORES_POR_ESTADO = {
     # "4-10": {"foregroundColor": "rgb(20, 20, 20)", "labelColor": "rgb(60, 60, 60)"},
-}
-
-APELIDOS = {
-    "Flamengo": "Flamenguista",
-    "Botafogo": "Botafoguense",
-    "Fluminense": "Fluminense",
-    "Vasco": "Vascaíno",
 }
 
 _CRED = None
@@ -115,7 +110,7 @@ def _arquivos_strip(temporada, punches, meta, tipo_recompensa):
 
     candidatos = [
         os.path.join(STRIPS_DIR, temporada, f"{nome}.png"),
-        os.path.join(STRIPS_DIR, "padrao", f"{nome}.png"),
+        os.path.join(STRIPS_DIR, "estilos", f"{nome}.png"),
         os.path.join(STRIPS_DIR, temporada, f"strip_estilos_0-{meta}.png"),
     ]
     caminho = next((c for c in candidatos if os.path.exists(c)), None)
@@ -165,79 +160,68 @@ def _arquivos_artwork(estado):
 def montar_pass_json(consumidor, aviso=None):
     meta = int(consumidor.get("meta", 10))
     punches = int(consumidor.get("punches", 0))
-    indicados = len(consumidor.get("indicados", []))
     disponiveis = [r for r in consumidor.get("recompensas", []) if not r.get("resgatada")]
-    tem_recompensa = len(disponiveis) > 0
+    tem_premio = any(r.get("tipo") == "punch" for r in disponiveis)
+    tem_mate = any(r.get("tipo") == "boas_vindas" for r in disponiveis)
 
-    if tem_recompensa:
-        progresso = "Chopp grátis!"
-    else:
-        progresso = f"{punches} de {meta}"
+    try:
+        import storage
+        config = storage.carregar_config()
+    except Exception:
+        config = {}
 
-    apelido = APELIDOS.get(consumidor.get("time", ""), "")
-
-    cadastro = consumidor.get("cadastro_em", "")
-    desde = f"{cadastro[5:7]}/{cadastro[2:4]}" if len(cadastro) >= 7 else ""
-
+    # Frente: Membro + trilha de indicacao. Sem campo de pontos: o contador
+    # ja vem gravado na arte da faixa (strip).
     campos_frente = [
-        {"key": "associado", "label": "ASSOCIADO", "value": consumidor.get("nome", "")},
+        {"key": "membro", "label": "MEMBRO", "value": consumidor.get("nome", "")},
+        {"key": "indicacoes", "label": "PARA A PRÓXIMA PREMIAÇÃO",
+         "value": regras.texto_indicacoes(consumidor, config),
+         "textAlignment": "PKTextAlignmentRight"},
     ]
-    if apelido:
-        campos_frente.append({
-            "key": "torcida", "value": apelido,
-            "textAlignment": "PKTextAlignmentCenter",
-        })
-    campos_frente.append({
-        "key": "desde", "label": "DESDE", "value": desde,
-        "textAlignment": "PKTextAlignmentRight",
-    })
 
     verso = [
         # ESTE CAMPO E O MOTOR DO PUSH.
         # changeMessage "%@" faz a notificacao repetir o proprio valor.
-        # Trocando o valor, disparamos QUALQUER texto - inclusive quando
-        # nenhum outro campo mudou (ex.: ponto de indicado descartado).
+        # Trocando o valor, disparamos QUALQUER texto.
         {
             "key": "aviso",
             "label": "Último aviso",
-            "value": aviso or "Bem-vindo ao Clube Backbone.",
+            "value": aviso or "Bem-vindo ao Clube Cotito.",
             "changeMessage": "%@",
         },
-        {
-            "key": "regras",
-            "label": "Como funciona",
-            "value": (
-                f"Apresente este cartão ao(à) atendente a cada chopp Backbone consumido. "
-                f"Quando você completar o décimo consumido, você ganhará um Chopp Backbone Pilsen 300 ml.\n\n"
-                f"Para resgatar seu chopp, o(a) atendente deve escanear o QR do seu cartão mais uma vez. "
-                f"Feito isto, você ganha o chopp e abre uma nova cartela, começando em 0/{meta}.\n\n"
-                f"Indique amigos e ganhe pontos com o consumo deles!!\n\n"
-                f"Apresente seu QR à câmera do telefone do seu amigo, e ele poderá se cadastrar "
-                f"tendo você como indicador!"
-            ),
-        },
-        {
-            "key": "cardapio",
-            "label": "Cardápio",
-            "attributedValue": f"<a href='{CARDAPIO_URL}'>Ver os estilos</a>",
-        },
-        {
-            "key": "temporadas",
-            "label": "Temporadas completadas",
-            "value": ", ".join(consumidor.get("temporadas_completas", [])) or "Nenhuma ainda",
-        },
+        {"key": "regras", "label": "Como funciona", "value": regras.texto_regras(meta)},
         {
             "key": "aniversario",
             "label": "Aniversário",
             "value": f"{consumidor.get('nascimento_dia','')}/{consumidor.get('nascimento_mes','')}",
         },
     ]
+    if CARDAPIO_URL:
+        verso.insert(2, {
+            "key": "cardapio", "label": "Cardápio", "value": "Ver o cardápio",
+            "attributedValue": f"<a href='{CARDAPIO_URL}'>Ver o cardápio</a>",
+        })
+    if PERFIL_URL:
+        verso.insert(2, {
+            "key": "meusdados", "label": "Meus dados", "value": "Ver pontos e indicações",
+            "attributedValue": f"<a href='{PERFIL_URL}?tel={consumidor['telefone']}'>Ver pontos e indicações</a>",
+        })
 
     estado = _estado(consumidor)
     cores = dict(CORES_PADRAO)
     cores.update(CORES_POR_ESTADO.get(estado, {}))
 
-    header = [{"key": "indicados", "label": "INDICADOS", "value": str(indicados)}]
+    if tem_mate:
+        rodape = "Mate da casa — mostre no balcão"
+    elif tem_premio:
+        rodape = "Executivo grátis — mostre no balcão"
+    else:
+        rodape = f"{punches} de {meta} pontos"
+
+    acoes = [{"identifier": "pontos", "type": "membershipBenefits",
+              "url": f"{PERFIL_URL}?tel={consumidor['telefone']}"}]
+    if LOJA_URL:
+        acoes.append({"identifier": "loja", "type": "shop", "url": LOJA_URL})
 
     pass_json = {
         "formatVersion": 1,
@@ -245,10 +229,9 @@ def montar_pass_json(consumidor, aviso=None):
         "serialNumber": consumidor["telefone"],
         "teamIdentifier": TEAM_ID,
         "organizationName": ORG_NAME,
-        "description": "Clube Backbone",
+        "description": regras.NOME_CLUBE,
 
         # SEM logoText: testado no iPhone, corta.
-        # Cores valem para os dois estilos (ver CORES_POR_ESTADO).
         **cores,
 
         # Sem estes dois campos o pass NUNCA podera receber push.
@@ -257,37 +240,22 @@ def montar_pass_json(consumidor, aviso=None):
 
         # ── iOS 26 e anteriores: cartao de hoje ──
         "storeCard": {
-            "headerFields": header,
             # primaryFields VAZIO: o texto imprimiria por cima da strip.
             "secondaryFields": campos_frente,
             "backFields": verso,
         },
 
-        # ── iOS 27+: poster de ponta a ponta (artwork_{estado}.png) ──
-        # A Apple desenha por cima da arte: primaryLogo + header no topo,
-        # QR no centro, primaryFields/footerFields numa faixa escura na base.
-        # A arte ja carrega garrafa, nome da cerveja e o X/10.
+        # ── iOS 27+: poster (so usado se houver artwork_*.png; hoje nao ha) ──
         "posterGeneric": {
-            "headerFields": header,
             "primaryFields": [
-                {"key": "socio", "label": "Sócio", "value": consumidor.get("nome", "")},
-                {"key": "desde", "label": "Desde", "value": desde},
+                {"key": "membro", "label": "Membro", "value": consumidor.get("nome", "")},
             ],
-            "footerFields": [
-                {"key": "progresso", "value": (
-                    "Chopp grátis — chame o atendente" if tem_recompensa
-                    else f"Chopp {punches} de {meta}"
-                )},
-            ],
+            "footerFields": [{"key": "progresso", "value": rodape}],
             "backFields": verso,
         },
 
-        # ── iOS 27+: dois botoes abaixo do cartao (iOS antigo ignora) ──
-        "featuredActions": [
-            {"identifier": "pontos", "type": "membershipBenefits",
-             "url": f"{PERFIL_URL}?tel={consumidor['telefone']}"},
-            {"identifier": "loja", "type": "shop", "url": LOJA_URL},
-        ],
+        # ── iOS 27+: botoes abaixo do cartao (iOS antigo ignora) ──
+        "featuredActions": acoes,
 
         "barcodes": [{
             "message": f"{WEB_SERVICE_URL}/q/{consumidor['telefone']}",

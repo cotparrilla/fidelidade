@@ -19,14 +19,19 @@ from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import AuthorizedSession
 from google.auth import crypt, jwt as google_jwt
 
+import regras
+
 BASE_URL = "https://walletobjects.googleapis.com/walletobjects/v1"
 SCOPE = "https://www.googleapis.com/auth/wallet_object.issuer"
 
 ISSUER_ID = os.environ.get("GOOGLE_WALLET_ISSUER_ID", "")
-CLASS_SUFFIX = "clube_backbone"
+CLASS_SUFFIX = "clube_cotito"
 
-# imagens publicas (GitHub Pages)
-LOGO_URI = "https://hthoni.github.io/backbone/gwallet_logo_b.png"
+# endereco publico das telas (GitHub Pages) e do servidor (Cloud Run)
+PAGES_URL = os.environ.get("PAGES_URL", "https://cotparrilla.github.io/fidelidade").rstrip("/")
+WEB_SERVICE_URL = os.environ.get("WEB_SERVICE_URL", "").rstrip("/")
+
+LOGO_URI = f"{PAGES_URL}/gwallet_logo_cotito.png"
 
 _chave_info = None
 _sessao = None
@@ -67,16 +72,16 @@ def id_objeto(telefone):
 def _payload_classe():
     return {
         "id": id_classe(),
-        "issuerName": "Backbone Cervejaria Artesanal",
-        "programName": "Clube Backbone",
+        "issuerName": "Cotito",
+        "programName": "Clube Cotito",
         "programLogo": {
             "sourceUri": {"uri": LOGO_URI},
             "contentDescription": {
-                "defaultValue": {"language": "pt-BR", "value": "Clube Backbone"}
+                "defaultValue": {"language": "pt-BR", "value": "Clube Cotito"}
             },
         },
         "reviewStatus": "UNDER_REVIEW",
-        "hexBackgroundColor": "#000000",
+        "hexBackgroundColor": "#1C180E",
         "countryCode": "BR",
     }
 
@@ -102,14 +107,14 @@ def garantir_classe():
 #  OBJETO (o cartao de cada consumidor)
 # ──────────────────────────────────────────────────────────────
 
-HERO_BASE = "https://hthoni.github.io/backbone/strips/estilos"
+HERO_BASE = f"{PAGES_URL}/strips/estilos"
 
 # O Google baixa a imagem UMA vez por URL e guarda a copia dele: trocar o
 # PNG no GitHub com o mesmo nome NAO muda o cartao no Android (foi o que
 # prendeu a arte da promo de outubro/2026). Toda vez que as strips forem
 # trocadas, suba este numero (ou a env var HERO_VERSAO) e chame
 # POST /admin/gwallet/reatualizar para reenviar os objetos.
-HERO_VERSAO = os.environ.get("HERO_VERSAO", "2")
+HERO_VERSAO = os.environ.get("HERO_VERSAO", "1")
 
 def _hero_uri(consumidor):
     """Mesma logica da strip do Apple: boas-vindas > premio > quadro do progresso."""
@@ -135,25 +140,22 @@ def _payload_objeto(consumidor):
     tem_premio = any(r.get("tipo") != "boas_vindas" for r in pendentes)
 
     if tem_boas_vindas:
-        situacao = "Chopp de boas-vindas disponível — chame o atendente!"
+        situacao = "Seu mate da casa está liberado. Mostre este cartão no balcão!"
     elif tem_premio or punches >= meta:
-        situacao = "CHOPP GRÁTIS liberado — chame o atendente!"
+        situacao = "Executivo grátis liberado. Mostre este cartão no balcão!"
     else:
-        situacao = f"Faltam {meta - punches} chopps para o próximo grátis."
+        situacao = f"Faltam {meta - punches} pontos para o executivo por nossa conta."
 
     aviso = consumidor.get("aviso", "")
 
-    # Mesmo texto do verso do cartao Apple (mantido identico nos dois
-    # wallets) — inclui a instrucao de indicacao por QR, sem link/WhatsApp.
-    regras = (
-        f"Apresente este cartão ao(à) atendente a cada chopp Backbone consumido. "
-        f"Quando você completar o décimo consumido, você ganhará um Chopp Backbone Pilsen 300 ml.\n\n"
-        f"Para resgatar seu chopp, o(a) atendente deve escanear o QR do seu cartão mais uma vez. "
-        f"Feito isto, você ganha o chopp e abre uma nova cartela, começando em 0/{meta}.\n\n"
-        f"Indique amigos e ganhe pontos com o consumo deles!!\n\n"
-        f"Apresente seu QR à câmera do telefone do seu amigo, e ele poderá se cadastrar "
-        f"tendo você como indicador!"
-    )
+    try:
+        import storage
+        config = storage.carregar_config()
+    except Exception:
+        config = {}
+
+    # mesmo texto do verso do cartao Apple
+    texto_regras = regras.texto_regras(meta)
 
     return {
         "id": id_objeto(tel),
@@ -162,28 +164,28 @@ def _payload_objeto(consumidor):
         "accountId": tel,
         "accountName": consumidor.get("nome", ""),
         "loyaltyPoints": {
-            "label": "Chopps",
+            "label": "Pontos",
             "balance": {"string": f"{punches} de {meta}"},
         },
         "secondaryLoyaltyPoints": {
-            "label": "Indicados",
-            "balance": {"string": str(len(consumidor.get("indicados", [])))},
+            "label": "Próxima premiação",
+            "balance": {"string": regras.texto_indicacoes(consumidor, config)},
         },
         "heroImage": {
             "sourceUri": {"uri": _hero_uri(consumidor)},
             "contentDescription": {
-                "defaultValue": {"language": "pt-BR", "value": "Clube Backbone"}
+                "defaultValue": {"language": "pt-BR", "value": "Clube Cotito"}
             },
         },
         "barcode": {
             "type": "QR_CODE",
-            "value": f"https://backbone-650557630362.us-central1.run.app/q/{tel}",
+            "value": f"{WEB_SERVICE_URL}/q/{tel}",
             "alternateText": tel,
         },
         "textModulesData": [
             {"id": "situacao", "header": "Situação", "body": situacao},
             {"id": "aviso", "header": "Último aviso", "body": aviso or "—"},
-            {"id": "regras", "header": "Como funciona", "body": regras},
+            {"id": "regras", "header": "Como funciona", "body": texto_regras},
         ],
     }
 
@@ -233,7 +235,7 @@ def link_salvar(consumidor):
         "payload": {
             "loyaltyObjects": [_payload_objeto(consumidor)],
         },
-        "origins": ["https://hthoni.github.io"],
+        "origins": ["https://" + PAGES_URL.split("://", 1)[-1].split("/", 1)[0]],
     }
     signer = crypt.RSASigner.from_service_account_info(chave)
     token = google_jwt.encode(signer, claims).decode("utf-8")

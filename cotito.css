@@ -1,0 +1,86 @@
+/*
+ * Marca Cotito — telas do cliente (cadastro, meus dados).
+ * Paleta e fontes do brand book. Newsreader está no lugar da ABC Arizona Mix
+ * até termos os arquivos licenciados; Xanh Mono é a fonte de apoio da marca.
+ */
+:root{
+  --creme:#E9E1CC; --preto:#1C180E; --amarelo:#FFD13B; --vermelho:#FF6638; --azul:#99B8E5;
+  --linha:rgba(28,24,14,.18); --suave:rgba(28,24,14,.66);
+  --f-display:"Newsreader","Times New Roman",serif;
+  --f-texto:"Instrument Sans",system-ui,-apple-system,sans-serif;
+  --f-mono:"Xanh Mono","Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%}
+body{
+  font-family:var(--f-texto); background:var(--creme); color:var(--preto);
+  font-size:16px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  min-height:100dvh; display:flex; flex-direction:column;
+}
+body.amarelo{background:var(--amarelo)}
+main{
+  width:100%; max-width:460px; margin:0 auto; flex:1;
+  padding:calc(env(safe-area-inset-top,0px) + 22px) 22px calc(env(safe-area-inset-bottom,0px) + 26px);
+  display:flex; flex-direction:column; gap:16px;
+}
+.logo{display:block; width:132px; height:auto}
+h1{font-family:var(--f-display); font-weight:300; text-transform:uppercase;
+   font-size:clamp(30px,8.6vw,38px); line-height:1; letter-spacing:-.005em; text-wrap:balance}
+.sub{font-size:15px; max-width:34ch}
+.mono{font-family:var(--f-mono); text-transform:uppercase; letter-spacing:.06em; font-size:12px}
+.etiqueta{align-self:flex-start; background:var(--preto); color:var(--amarelo);
+          padding:5px 11px; border-radius:999px}
+
+.campo{display:flex; flex-direction:column; gap:6px}
+.campo label{font-family:var(--f-mono); font-size:12px; letter-spacing:.08em}
+input,select{
+  width:100%; background:var(--creme); border:1.5px solid var(--preto); color:var(--preto);
+  font:500 16px var(--f-texto); padding:12px 13px; border-radius:0; appearance:none; -webkit-appearance:none;
+}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%231C180E' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 12px center; padding-right:34px;
+}
+input:focus,select:focus{outline:2px solid var(--vermelho); outline-offset:1px}
+.dupla{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.lgpd{display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.35}
+.lgpd input{width:18px; height:18px; flex:none; margin-top:1px; padding:0; appearance:auto; -webkit-appearance:checkbox; accent-color:var(--preto)}
+
+.btn{
+  display:block; width:100%; text-align:center; text-decoration:none; border:none; cursor:pointer;
+  background:var(--preto); color:var(--creme); padding:16px;
+  font-family:var(--f-mono); font-size:14px; letter-spacing:.08em; text-transform:uppercase;
+}
+.btn:disabled{opacity:.5}
+.btn.claro{background:transparent; color:var(--preto); border:1.5px solid var(--preto)}
+.wallet{display:flex; align-items:center; justify-content:center; gap:8px; width:100%;
+        background:#000; color:#fff; border-radius:12px; padding:14px; font:600 15px var(--f-texto); text-decoration:none}
+.wallet.g{background:#fff; color:#1f1f1f; border:1px solid #c9c9c9}
+.erro{color:#B3261E; font-size:14px; font-weight:600; min-height:18px}
+.carregando{font-family:var(--f-mono); text-transform:uppercase; letter-spacing:.06em; font-size:13px; padding:40px 0; text-align:center}
+
+.passo{display:flex; gap:12px; align-items:flex-start; font-size:15px}
+.passo b{font:400 12px var(--f-mono); flex:none; width:24px; height:24px; border-radius:50%;
+         background:var(--preto); color:var(--amarelo); display:grid; place-items:center}
+.boi{display:block; width:58px; height:auto}
+.nota{font-size:13px; color:var(--suave); text-align:center}
+
+.bloco{border-top:1.5px solid var(--preto); padding-top:12px; display:flex; flex-direction:column; gap:10px}
+.bloco .t{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+.bloco .t .n{font-family:var(--f-display); font-size:32px; line-height:1; font-variant-numeric:tabular-nums}
+.dots{display:flex; gap:6px}
+.dots i{flex:1; aspect-ratio:1; border-radius:50%; border:1.5px solid var(--preto)}
+.dots i.on{background:var(--preto)}
+.trilha{position:relative; height:46px}
+.trilha .base{position:absolute; left:0; right:0; top:9px; height:6px; background:rgba(28,24,14,.14)}
+.trilha .feito{position:absolute; left:0; top:9px; height:6px; background:var(--vermelho); max-width:100%}
+.trilha .marco{position:absolute; top:2px; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:3px}
+.trilha .marco:last-child{transform:translateX(-100%); align-items:flex-end}
+.trilha .marco i{width:20px; height:20px; border-radius:50%; background:var(--creme); border:1.5px solid var(--preto)}
+.trilha .marco.ok i{background:var(--preto)}
+.trilha .marco small{font-family:var(--f-mono); font-size:11px; white-space:nowrap}
+.caixa{background:var(--azul); padding:14px; font-size:14px; display:flex; gap:12px; align-items:center}
+.caixa img{width:40px; flex:none}
+.destaque{background:var(--preto); color:var(--creme); padding:14px; font-size:15px}
+.destaque b{font-family:var(--f-mono); font-weight:400; text-transform:uppercase; letter-spacing:.06em;
+            font-size:12px; display:block; color:var(--amarelo); margin-bottom:4px}

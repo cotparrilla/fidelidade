@@ -7,7 +7,7 @@ import uuid
 import concurrent.futures
 from google.cloud import storage
 
-BUCKET_NAME = "backbone-consumidor"
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "cotito-fidelidade")
 
 
 def _bucket():
@@ -245,14 +245,14 @@ def listar_bares():
 
 def carregar_config():
     blob = _bucket().blob("config/config.json")
-    if not blob.exists():
-        return {
-            "punches_para_recompensa": 10,
-            "temporada_vigente": "padrao",
-        }
-    cfg = json.loads(blob.download_as_text())
+    cfg = json.loads(blob.download_as_text()) if blob.exists() else {}
     cfg.setdefault("punches_para_recompensa", 10)
-    cfg.setdefault("temporada_vigente", "padrao")
+    cfg.setdefault("temporada_vigente", "estilos")     # pasta das artes do cartao
+    cfg.setdefault("bloqueio_ponto_horas", 2)          # Cotito: 1 ponto a cada 2 h
+    cfg.setdefault("brindes_indicacao", [               # Cotito: degraus de indicacao
+        {"qtd": 15, "nome": "Boné"},
+        {"qtd": 45, "nome": "Camiseta"},
+    ])
     return cfg
 
 
