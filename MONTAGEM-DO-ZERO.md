@@ -33,6 +33,20 @@ aparecer na tela, primeiro login de dono). Rodar no Cloud Shell com o projeto se
 `bash <(curl -fsSL https://raw.githubusercontent.com/cotparrilla/fidelidade/main/infra/montar-google-cloud.sh)`.
 Depois, só falta o gatilho do Cloud Build (passo 6) e colar a URL em `config.js`.
 
+**Problemas que aconteceram na montagem do Cotito (nov/2026):**
+- `PERMISSION_DENIED ... default service account is missing required IAM permissions` no
+  deploy: as permissões recém-dadas ainda não tinham propagado. Rodar o script de novo
+  alguns minutos depois resolveu.
+- Telas mostrando "Sem conexão" e o endereço do servidor dando "Forbidden": a conta é
+  Google Workspace, que por padrão proíbe acesso público (`iam.allowedPolicyMemberDomains`).
+  Solução aplicada só no projeto: dar a si mesmo `roles/orgpolicy.policyAdmin` na
+  organização, criar uma política do projeto com `allowAll: true` para essa restrição
+  (`gcloud org-policies set-policy`, exige ligar a API `orgpolicy.googleapis.com`) e então
+  `gcloud run services add-iam-policy-binding fidelidade --region southamerica-east1
+  --member=allUsers --role=roles/run.invoker`.
+- Projeto do Cotito: `stoked-depth-514317-r5`. Servidor:
+  `https://fidelidade-gholcw5waa-rj.a.run.app` (região `southamerica-east1`).
+
 1. Criar um **projeto** (ex.: `fidelidade-restaurante`), com cobrança ativada.
 2. Ativar as APIs: Cloud Run, Cloud Build, Artifact Registry, Cloud Storage.
 3. Criar o **bucket** do Cloud Storage (região `us-central1` ou a mais próxima). Esse
