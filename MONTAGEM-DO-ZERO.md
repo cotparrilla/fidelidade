@@ -88,6 +88,12 @@ Cuidados:
 
 ## 4. Google Wallet (emissor novo, no nome do filho)
 
+**Cotito:** passos 2, 3 e 5 automatizados em `infra/ligar-google-wallet.sh` (cria a conta de
+serviço `wallet@<projeto>`, libera a criação de chave só no projeto, grava a chave no Cloud
+Run sem exibir, republica o servidor). A classe do cartão é criada sozinha no primeiro
+"Adicionar ao Google Wallet". Falta só autorizar o e-mail da conta de serviço no Wallet
+Console e, enquanto em modo de teste, adicionar as contas Google de teste.
+
 1. Abrir o **Google Pay & Wallet Console** e cadastrar-se como emissor; anotar o
    **Issuer ID**.
 2. No Google Cloud do restaurante, criar uma **conta de serviço** e baixar a chave JSON.

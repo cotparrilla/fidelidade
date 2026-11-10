@@ -1258,6 +1258,21 @@ def colab_historico(colab_id):
     return jsonify({"colab_id": colab_id, "totais": totais_geral, "meses": meses})
 
 
+_classe_gwallet_ok = False
+
+
+def _garantir_classe_gwallet():
+    """Cria/atualiza a classe do cartao no Google uma vez por instancia do servidor."""
+    global _classe_gwallet_ok
+    if _classe_gwallet_ok:
+        return
+    r = gwallet.garantir_classe()
+    if r.get("status") in ("criada", "atualizada"):
+        _classe_gwallet_ok = True
+    else:
+        raise RuntimeError(f"classe do Google Wallet: {r}")
+
+
 @app.route("/gwallet/<telefone>")
 def gwallet_link(telefone):
     """Redireciona para o link 'Salvar no Google Wallet' do consumidor."""
@@ -1265,6 +1280,7 @@ def gwallet_link(telefone):
     if not c:
         return jsonify({"erro": "nao_encontrado"}), 404
     try:
+        _garantir_classe_gwallet()
         url = gwallet.link_salvar(c)
         return Response(status=302, headers={"Location": url})
     except Exception as e:
