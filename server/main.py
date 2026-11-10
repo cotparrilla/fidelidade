@@ -783,7 +783,13 @@ def marcar_tutorial_visto(garcom_id):
 
 @app.route("/admin/bares")
 def admin_bares():
-    return jsonify(storage.listar_bares())
+    bares = storage.listar_bares()
+    if not bares:
+        # o Cotito tem uma unidade so: cria na primeira vez que alguem pede
+        unidade = {"id": "cotito", "nome": "Cotito", "pratos": False}
+        storage.salvar_bar(unidade)
+        bares = [unidade]
+    return jsonify(bares)
 
 
 @app.route("/admin/bares", methods=["POST"])
@@ -860,8 +866,14 @@ def admin_config():
 
 @app.route("/admin/config", methods=["POST"])
 def admin_salvar_config():
-    storage.salvar_config(request.get_json())
-    return jsonify({"status": "ok"})
+    # junta com a config atual: salvar so a meta nao apaga os brindes, etc.
+    config = storage.carregar_config()
+    novos = request.get_json() or {}
+    if "brindes_indicacao" in novos:
+        novos["brindes_indicacao"] = regras.brindes_config(novos)
+    config.update(novos)
+    storage.salvar_config(config)
+    return jsonify({"status": "ok", "config": config})
 
 
 @app.route("/admin/push/<telefone>", methods=["POST"])
@@ -1516,7 +1528,7 @@ def atividade_bar(bar_id):
 
     eventos = [e for e in storage.listar_eventos()
                if (bar_id == "*" or e.get("bar") == bar_id)
-               and e.get("tipo") in ("punch", "resgate", "prato", "resgate_prato")]
+               and e.get("tipo") in ("punch", "resgate", "brinde", "ponto_bloqueado", "prato", "resgate_prato")]
 
     if mes and mes != "todos":
         eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
@@ -1550,6 +1562,7 @@ def atividade_bar(bar_id):
             "garcom": garcons.get(e.get("garcom_id"), e.get("garcom_id") or "—"),
             "tipo": e.get("tipo"),
             "tipo_recompensa": e.get("tipo_recompensa"),
+            "brinde": e.get("brinde"),
             "colab": colabs.get(e.get("colab")) if e.get("colab") else None,
         } for e in pagina],
         "offset": offset,

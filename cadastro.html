@@ -3,159 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
-<title>Clube Backbone</title>
-<style>
-  :root{
-    --preto:#000; --preto2:#141414; --linha:#2E2E2E;
-    --branco:#FFF; --cinza:#A8A8A2;
-    --rubro:#D8232A; --ambar:#E8A317; --verde:#1F7A47;
-    --campo:#E9E7DF;
-  }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-    background:var(--preto); color:var(--branco);
-    min-height:100dvh; display:flex; flex-direction:column;
-    -webkit-font-smoothing:antialiased;
-  }
-  .cab{
-    display:flex; justify-content:center;
-    padding:calc(env(safe-area-inset-top,0px) + 10px) 20px 10px;
-    border-bottom:1px solid var(--linha); flex-shrink:0;
-  }
-  .cab img{height:48px; width:auto; display:block}
-
-  main{
-    flex:1; display:flex; flex-direction:column; justify-content:flex-start;
-    padding:14px 22px calc(16px + env(safe-area-inset-bottom,0px));
-    max-width:480px; margin:0 auto; width:100%;
-  }
-  h1{font-size:20px; font-weight:800; line-height:1.15; margin-bottom:12px}
-  p{font-size:16px; line-height:1.45; color:#D6D4CC; margin-bottom:10px}
-
-  label{display:block; font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza); margin:0 0 5px 2px}
-  input, select{
-    width:100%; background:var(--campo); border:2px solid var(--campo); color:#111;
-    font-size:16px; font-weight:600; padding:11px 12px; border-radius:10px;
-    font-family:inherit; appearance:none; -webkit-appearance:none;
-  }
-  select{
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23111' stroke-width='2' fill='none'/%3E%3C/svg%3E");
-    background-repeat:no-repeat; background-position:right 12px center; padding-right:34px;
-  }
-  input:focus, select:focus{outline:none; border-color:var(--ambar)}
-  .grupo{margin-bottom:13px}
-  .linha{display:flex; gap:10px}
-  .linha > div{flex:1}
-
-  .destaque{
-    font-size:15px; line-height:1.4; color:var(--ambar); font-weight:700;
-    margin:0 0 6px 2px;
-  }
-
-  .btn{
-    display:block; width:100%; padding:16px; border:none; border-radius:14px;
-    font-size:18px; font-weight:800; text-align:center; text-decoration:none;
-    margin-top:6px; cursor:pointer; font-family:inherit;
-  }
-  .btn-verde{background:var(--verde); color:#FFF}
-  .btn:active{transform:scale(.985)}
-  .btn:disabled{opacity:.5}
-
-  .premio{
-    background:#FFF; color:#000; border-radius:16px;
-    padding:20px; margin:22px 0; text-align:center;
-  }
-  .premio .g{font-size:20px; font-weight:800; line-height:1.3}
-  .aviso{
-    background:var(--preto2); border:1px solid var(--linha); border-radius:12px;
-    padding:16px; font-size:15px; color:#FFF; line-height:1.45; margin-top:12px;
-  }
-  .aviso-titulo{
-    font-size:17px; font-weight:800; color:var(--ambar); line-height:1.3;
-    text-align:center; text-transform:uppercase; margin-bottom:10px;
-    overflow-wrap:break-word; word-break:break-word;
-  }
-  .erro-msg{color:#FF6B6B; font-size:14px; font-weight:600; min-height:18px; margin-top:8px}
-  .carregando{color:var(--cinza); font-size:17px; text-align:center; padding:36px 0}
-
-  /* ── benefícios (chopp grátis / árvore plantada) ── */
-  .beneficios{
-    background:var(--preto2); border:1px solid var(--linha); border-radius:14px;
-    padding:16px; margin-top:14px;
-  }
-  .beneficios-titulo{
-    font-size:13px; font-weight:800; letter-spacing:.1em; color:var(--cinza);
-    text-transform:uppercase; margin-bottom:12px;
-  }
-  .beneficio-item{
-    display:flex; align-items:center; gap:12px; margin-bottom:12px;
-  }
-  .beneficio-badge{
-    flex-shrink:0; width:48px; height:48px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-    font-weight:800;
-  }
-  .beneficio-badge.amarelo{background:#E8A317; color:#151000}
-  .beneficio-badge.cinza{background:#D9D7CF; color:#151515}
-  .beneficio-badge.tam2{font-size:19px}
-  .beneficio-badge.tam3{font-size:16px}
-  .beneficio-texto{font-size:14px; line-height:1.35; color:#EDEBE3}
-  .beneficio-texto strong{color:#fff}
-  .beneficios-fotos{
-    display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:4px;
-  }
-  .beneficios-fotos img{
-    width:100%; aspect-ratio:2/3; object-fit:cover; border-radius:8px; display:block;
-  }
-  .beneficios-legenda{
-    font-size:12px; color:var(--cinza); text-align:center; margin-top:8px;
-  }
-</style>
+<meta name="theme-color" content="#FFD13B">
+<title>Clube Cotito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400&family=Instrument+Sans:wght@400;500;600&family=Xanh+Mono&display=swap">
+<link rel="stylesheet" href="cotito.css">
 </head>
-<body>
-  <div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
-  <main id="conteudo"><p class="carregando">Carregando…</p></main>
+<body class="amarelo">
+<main id="conteudo"><p class="carregando">Carregando…</p></main>
 
+<script src="config.js"></script>
 <script>
-const SERVER = "https://backbone-650557630362.us-central1.run.app";
+const SERVER = window.COTITO_API;
 
-const q    = new URLSearchParams(location.search);
-const bar  = q.get("indicador") || q.get("bar") || "";
-const telQ = (q.get("tel") || "").replace(/\D/g, "");
-const nomeQ = q.get("nome") || "";
-const diaQ  = q.get("dia")  || "";
-const mesQ  = q.get("mes")  || "";
-const timeQ = q.get("time") || "";
+const q     = new URLSearchParams(location.search);
+const bar   = q.get("indicador") || q.get("bar") || "cotito";
 const ind   = (q.get("padrinho") || q.get("ind") || "").replace(/\D/g, "");
-const palavra = q.get("palavra") || "";
 const colab = q.get("colab") || "";
 
 const alvo = document.getElementById("conteudo");
 const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+const LOGO = '<img class="logo" src="logo_cotito_preto.png" alt="Cotito">';
+
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function primeiroNome(n){ return String(n || "").trim().split(/\s+/)[0]; }
 
 /*
- * Este navegador/aparelho ja concluiu um cadastro antes? Se sim, pede
- * confirmacao de telefone em vez do formulario completo de novo:
- *   - telefone JA existe no banco -> reimprime o cartao no estagio
- *     atual dele (recuperacao legitima, sem gerar boas-vindas nova)
- *   - telefone NAO existe -> por enquanto (ate a verificacao via
- *     WhatsApp estar pronta) deixa seguir pro cadastro novo normal
+ * Este aparelho já fez um cadastro? Pede só o telefone para achar o cartão,
+ * em vez do formulário completo (evita gente pegando mate de novo).
  */
-if(localStorage.getItem("bb_ja_cadastrou")){
-  telaRecuperar();
-}
-/* ══ MODO 1: dados completos na URL (fluxo do bot) → cadastra direto ══ */
-/* ══ MODO 2: sem dados → formulário ══ */
-else if(telQ && nomeQ){ cadastrar(bar, telQ, nomeQ, diaQ, mesQ, timeQ); }
-else { formulario(); }
+if(localStorage.getItem("bb_ja_cadastrou")) telaRecuperar();
+else formulario();
 
 function mascararTelefone(input){
   input.addEventListener("input", () => {
-    let d = input.value.replace(/\D/g, "").slice(0, 11);
-    let f = d;
+    let d = input.value.replace(/\D/g, "").slice(0, 11), f = d;
     if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
     if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
     input.value = f;
@@ -164,334 +46,165 @@ function mascararTelefone(input){
 
 function telaRecuperar(){
   alvo.innerHTML = `
-    <h1>Já usamos este aparelho antes</h1>
-    <p>Se você já é sócio do Clube Backbone, confirme seu telefone pra gente localizar seu cartão:</p>
-
-    <div class="grupo">
-      <div class="destaque">Seu telefone</div>
-      <input id="r-tel" type="tel" inputmode="numeric" autocomplete="tel"
-             placeholder="(21) 99999-9999">
+    ${LOGO}
+    <h1>Você já tem cartão?</h1>
+    <p class="sub">Este celular já fez um cadastro no Clube Cotito. Confirme seu telefone para abrir o seu cartão.</p>
+    <div class="campo">
+      <label for="r-tel">TELEFONE</label>
+      <input id="r-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(21) 99999-9999">
     </div>
-
-    <button class="btn btn-verde" id="r-enviar">Confirmar</button>
-    <div class="erro-msg" id="r-erro"></div>
+    <button class="btn" id="r-enviar">Abrir meu cartão</button>
+    <div class="erro" id="r-erro"></div>
   `;
-
-  const telInput = document.getElementById("r-tel");
-  mascararTelefone(telInput);
-
+  const tel = document.getElementById("r-tel");
+  mascararTelefone(tel);
   document.getElementById("r-enviar").onclick = async () => {
-    const tel = telInput.value.replace(/\D/g, "");
-    const erro = document.getElementById("r-erro");
-    if(tel.length < 10 || tel.length > 11){
-      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
-    }
+    const t = tel.value.replace(/\D/g, ""), erro = document.getElementById("r-erro");
+    if(t.length < 10 || t.length > 11){ erro.textContent = "Confira o DDD e o número."; return; }
     erro.textContent = "";
-    const b = document.getElementById("r-enviar");
-    b.disabled = true; b.textContent = "Verificando…";
-
+    const b = document.getElementById("r-enviar"); b.disabled = true; b.textContent = "Procurando…";
     try{
-      const r = await fetch(SERVER + "/consumidor/55" + tel);
-      if(r.status === 404){
-        // ainda nao existe -> deixa seguir pro cadastro normal
-        // (a trava de fraude por numero novo fica pra quando a
-        // verificacao via WhatsApp estiver pronta)
-        formulario();
-        return;
-      }
+      const r = await fetch(SERVER + "/consumidor/55" + t);
+      if(r.status === 404){ formulario(); return; }   // número novo: segue para o cadastro
       if(!r.ok) throw 0;
-      const c = await r.json();
-      boasVindas(c);
+      jaTemCartao(await r.json());
     }catch(e){
       erro.textContent = "Sem conexão. Tente de novo.";
-    }finally{
-      b.disabled = false; b.textContent = "Confirmar";
-    }
+    }finally{ b.disabled = false; b.textContent = "Abrir meu cartão"; }
   };
 }
 
-function formulario(){
+async function nomePadrinho(){
+  if(!ind) return "";
+  try{
+    const r = await fetch(SERVER + "/consumidor/" + ind);
+    if(!r.ok) return "";
+    return primeiroNome((await r.json()).nome);
+  }catch(e){ return ""; }
+}
+
+async function formulario(){
   const dias = Array.from({length:31}, (_,i) => `<option value="${i+1}">${i+1}</option>`).join("");
-  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho",
-                 "Agosto","Setembro","Outubro","Novembro","Dezembro"]
-    .map((m,i) => `<option value="${i+1}">${m}</option>`).join("");
-  const times = ["Botafogo","Flamengo","Fluminense","Vasco","Outros"]
-    .map(t => `<option value="${t}">${t}</option>`).join("");
+  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto",
+                 "Setembro","Outubro","Novembro","Dezembro"].map((m,i) => `<option value="${i+1}">${m}</option>`).join("");
 
   alvo.innerHTML = `
-    <h1>Entre para o Clube Backbone</h1>
+    ${LOGO}
+    <span class="etiqueta mono" id="f-indicado" hidden></span>
+    <h1>O mate da casa é por nossa conta.</h1>
+    <p class="sub">Três respostas rápidas e ele é seu. Depois, cada executivo vira ponto. No 10º, o executivo é nosso.</p>
 
-    <div class="grupo">
-      <label>NOME</label>
+    <div class="campo">
+      <label for="f-nome">NOME</label>
       <input id="f-nome" type="text" autocomplete="given-name" placeholder="Seu primeiro nome">
     </div>
-
-    <div class="grupo">
-      <label>ANIVERSÁRIO</label>
-      <div class="linha">
-        <div><select id="f-dia"><option value="" disabled selected>Dia</option>${dias}</select></div>
-        <div><select id="f-mes"><option value="" disabled selected>Mês</option>${meses}</select></div>
+    <div class="campo">
+      <label for="f-tel">TELEFONE</label>
+      <input id="f-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(21) 99999-9999">
+    </div>
+    <div class="campo">
+      <label for="f-dia">ANIVERSÁRIO</label>
+      <div class="dupla">
+        <select id="f-dia" aria-label="Dia"><option value="" disabled selected>Dia</option>${dias}</select>
+        <select id="f-mes" aria-label="Mês"><option value="" disabled selected>Mês</option>${meses}</select>
       </div>
     </div>
-
-    <div class="grupo">
-      <label>TIME DE CORAÇÃO</label>
-      <select id="f-time"><option value="" disabled selected>Escolha</option>${times}</select>
-    </div>
-
-    <div class="grupo">
-      <label>CEP</label>
-      <div class="linha">
-        <div style="flex:1.2">
-          <input id="f-cep" type="tel" inputmode="numeric" autocomplete="postal-code"
-                 placeholder="00000-000">
-        </div>
-        <div style="flex:2;display:flex;align-items:center;background:#D9D7CF;border-radius:10px;padding:7px 11px;font-size:11.5px;color:#333;line-height:1.35;font-weight:600">
-          Seu CEP é usado para localizar eventos próximos a você
-        </div>
-      </div>
-    </div>
-
-    <div class="grupo">
-      <div class="destaque">Seu telefone é o login, atenção ao digitar</div>
-      <input id="f-tel" type="tel" inputmode="numeric" autocomplete="tel"
-             placeholder="(21) 99999-9999">
-    </div>
-
-    <button class="btn btn-verde" id="f-enviar">Entrar</button>
-    <div class="erro-msg" id="f-erro"></div>
+    <label class="lgpd"><input type="checkbox" id="f-lgpd">
+      <span>Aceito que o Cotito guarde meu nome, telefone e aniversário para o clube de pontos. Dá pra sair quando quiser.</span>
+    </label>
+    <button class="btn" id="f-enviar">Quero meu mate</button>
+    <div class="erro" id="f-erro"></div>
   `;
 
-  const cepInput = document.getElementById("f-cep");
-  cepInput.addEventListener("input", () => {
-    let d = cepInput.value.replace(/\D/g, "").slice(0, 8);
-    cepInput.value = d.length > 5 ? d.slice(0,5) + "-" + d.slice(5) : d;
-  });
+  const tel = document.getElementById("f-tel");
+  mascararTelefone(tel);
 
-  const telInput = document.getElementById("f-tel");
-  mascararTelefone(telInput);
+  nomePadrinho().then(n => {
+    const el = document.getElementById("f-indicado");
+    if(n && el){ el.textContent = "Indicado por " + n; el.hidden = false; }
+  });
 
   document.getElementById("f-enviar").onclick = () => {
     const nome = document.getElementById("f-nome").value.trim();
     const dia  = document.getElementById("f-dia").value;
     const mes  = document.getElementById("f-mes").value;
-    const time = document.getElementById("f-time").value;
-    let tel = telInput.value.replace(/\D/g, "");
-    const cep = cepInput.value.replace(/\D/g, "");
+    let t = tel.value.replace(/\D/g, "");
     const erro = document.getElementById("f-erro");
 
     if(!nome){ erro.textContent = "Escreva seu nome."; return; }
+    if(t.length < 10 || t.length > 11){ erro.textContent = "Confira o DDD e o número do telefone."; return; }
     if(!dia || !mes){ erro.textContent = "Escolha o dia e o mês do aniversário."; return; }
-    if(!time){ erro.textContent = "Escolha seu time."; return; }
-    if(cep.length !== 8){ erro.textContent = "CEP incompleto — são 8 números."; return; }
-    if(tel.length < 10 || tel.length > 11){
-      erro.textContent = "Telefone incompleto — confira o DDD e o número."; return;
-    }
-    tel = "55" + tel;
+    if(!document.getElementById("f-lgpd").checked){ erro.textContent = "Marque o aceite para entrar no clube."; return; }
+
     erro.textContent = "";
-    const b = document.getElementById("f-enviar");
-    b.disabled = true; b.textContent = "Entrando…";
-    cadastrar(bar || "site", tel, nome.split(" ")[0], dia, mes, time, cep);
+    const b = document.getElementById("f-enviar"); b.disabled = true; b.textContent = "Entrando…";
+    cadastrar("55" + t, primeiroNome(nome), dia, mes).finally(() => {
+      if(document.body.contains(b)){ b.disabled = false; b.textContent = "Quero meu mate"; }
+    });
   };
 }
 
-async function cadastrar(barU, tel, nome, dia, mes, time, cep){
-  let url = SERVER + "/cadastro/" + encodeURIComponent(barU || "site") + "/" + tel + "/" +
-            encodeURIComponent(nome) + "/" + (dia||"") + "/" + (mes||"") + "/" + encodeURIComponent(time||"");
+async function cadastrar(tel, nome, dia, mes){
+  // o último pedaço do endereço era o "time" na base; não é mais usado
+  let url = SERVER + "/cadastro/" + encodeURIComponent(bar) + "/" + tel + "/" +
+            encodeURIComponent(nome) + "/" + dia + "/" + mes + "/-";
   const extras = [];
   if(ind && ind !== tel) extras.push("padrinho=" + ind);
-  if(palavra) extras.push("palavra=" + encodeURIComponent(palavra));
-  if(cep) extras.push("cep=" + cep);
   if(colab) extras.push("colab=" + encodeURIComponent(colab));
   if(extras.length) url += "?" + extras.join("&");
 
+  const erro = document.getElementById("f-erro");
   try{
     const r = await fetch(url);
     const d = await r.json();
-    if(d.status === "nao_permitido"){
-      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>" + (d.motivo || "Cadastro não permitido.") + "</p>";
-      return;
-    }
-    if(d.status === "ja_cadastrado"){
-      jaEmitido(d.consumidor);
-      return;
-    }
-    if(d.status !== "cadastrado"){
-      alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Não deu para concluir o cadastro. Tente de novo.</p>";
-      return;
-    }
-    boasVindas(d.consumidor);
+    if(d.status === "nao_permitido"){ erro.textContent = d.motivo || "Cadastro não disponível."; return; }
+    if(d.status === "ja_cadastrado"){ jaTemCartao(d.consumidor); return; }
+    if(d.status !== "cadastrado"){ erro.textContent = "Não deu para concluir. Tente de novo."; return; }
+    pronto(d.consumidor);
   }catch(e){
-    alvo.innerHTML = "<p class='erro-msg' style='font-size:17px'>Sem conexão. Verifique a internet e recarregue.</p>";
+    erro.textContent = "Sem conexão. Verifique a internet e tente de novo.";
   }
 }
 
-function jaEmitido(c){
-  // telefone que ja tem cartao: NAO e um cadastro novo e NAO ha chopp de
-  // boas-vindas novo. Mostra a situacao real (cartela, boas-vindas ja
-  // usado ou nao) para o socio e para quem esta ajudando no bar.
+function botoesWallet(tel){
+  // no iPhone mostra só a Apple; no resto, só o Google
+  return ehIOS
+    ? `<a class="wallet" href="${SERVER}/cartao/${tel}">Adicionar à Apple Wallet</a>`
+    : `<a class="wallet g" href="${SERVER}/gwallet/${tel}">Adicionar ao Google Wallet</a>`;
+}
+
+function pronto(c){
   try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
+  document.body.classList.remove("amarelo");
+  document.querySelector('meta[name="theme-color"]').content = "#E9E1CC";
+  alvo.innerHTML = `
+    <img class="boi" src="boi_vermelho.png" alt="">
+    <h1>Tudo certo, ${esc(c.nome)}.</h1>
+    ${botoesWallet(c.telefone)}
+    <div class="passo"><b>1</b><span>Salve o cartão na carteira do celular.</span></div>
+    <div class="passo"><b>2</b><span>Mostre o cartão no balcão e pegue seu mate.</span></div>
+    <div class="passo"><b>3</b><span>A cada executivo, mostre de novo. O ponto entra na hora.</span></div>
+    <a class="btn claro" href="perfil.html?tel=${c.telefone}">Ver meus pontos</a>
+  `;
+}
 
-  const botaoWallet = ehIOS
-    ? '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/cartao/' + c.telefone + '">Abrir o cartão na Wallet</a>'
-    : '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/gwallet/' + c.telefone + '">Abrir o cartão na Wallet</a>';
-
-  const cad = c.cadastro_em || "";
-  const desde = cad.length >= 10 ? cad.slice(8,10) + "/" + cad.slice(5,7) + "/" + cad.slice(0,4) : "";
-  const recs = c.recompensas || [];
-  const bv = recs.find(r => r.tipo === "boas_vindas");
-  const bvPendente = bv && !bv.resgatada;
-  const premioPendente = recs.some(r => r.tipo !== "boas_vindas" && !r.resgatada);
-  const punches = c.punches ?? 0, meta = c.meta ?? 10;
-
+function jaTemCartao(c){
+  try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
+  document.body.classList.remove("amarelo");
+  document.querySelector('meta[name="theme-color"]').content = "#E9E1CC";
+  const r = c.resumo || {};
   let situacao;
-  if(bvPendente){
-    situacao = "Seu chopp de boas-vindas ainda está disponível — peça para o garçom escanear o QR do cartão.";
-  } else if(premioPendente){
-    situacao = "Você tem um chopp grátis liberado — peça para o garçom escanear o QR do cartão.";
-  } else {
-    const usado = bv && bv.resgatada_em
-      ? " (usado em " + bv.resgatada_em.slice(8,10) + "/" + bv.resgatada_em.slice(5,7) + "/" + bv.resgatada_em.slice(0,4) + ")" : "";
-    situacao = "O chopp de boas-vindas já foi resgatado" + usado + ". A cartela segue de onde parou: "
-      + "<strong>" + punches + " de " + meta + "</strong>. O próximo scan registra um ponto.";
-  }
-
+  if(r.mate_pendente)        situacao = "Seu mate da casa ainda está te esperando. Mostre o cartão no balcão.";
+  else if(r.premio_pendente) situacao = "Você tem um executivo grátis liberado. Mostre o cartão no balcão.";
+  else situacao = `Sua cartela está em <strong>${r.punches ?? c.punches ?? 0} de ${r.meta ?? c.meta ?? 10}</strong> pontos.`;
   alvo.innerHTML = `
-    <h1 style="font-size:28px">Você já é sócio, ${c.nome}!</h1>
-
-    <div class="aviso">
-      <div class="aviso-titulo" style="color:#FF6B6B">Cartão já emitido${desde ? " em " + desde : ""}</div>
-      Este telefone já tem cartão no Clube Backbone — não foi feito um cadastro novo.
-      <br><br>${situacao}
-    </div>
-
-    <div class="premio" style="margin:16px 0 0">
-      <div class="g">${punches}<span style="font-size:14px;color:#6E6E68">/${meta}</span></div>
-      <div style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6E6E68;margin-top:4px">chopps na cartela atual</div>
-    </div>
-
-    ${botaoWallet}
-
-    <a class="btn" style="background:var(--ambar); color:#151000; margin-top:10px"
-       href="perfil.html?tel=${c.telefone}">Ver meus dados no clube</a>
-
-    <p style="font-size:13px;color:var(--cinza);text-align:center;margin-top:16px;line-height:1.4">
-      Não é você? Confira se digitou o seu próprio número. Cada telefone tem um único cartão.
-    </p>
+    ${LOGO}
+    <h1>Você já é membro, ${esc(c.nome)}.</h1>
+    <div class="destaque"><b>Este telefone já tem cartão</b>${situacao}</div>
+    ${botoesWallet(c.telefone)}
+    <a class="btn claro" href="perfil.html?tel=${c.telefone}">Ver meus pontos</a>
+    <p class="nota">Não é você? Confira o número. Cada telefone tem um único cartão.</p>
   `;
-}
-
-function boasVindas(c){
-  // marca este aparelho/navegador como ja tendo baixado um cartao
-  try{ localStorage.setItem("bb_ja_cadastrou", "1"); }catch(e){}
-
-  const botaoWallet = ehIOS
-    ? '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/cartao/' + c.telefone + '">Guardar na Wallet do seu telefone</a>'
-    : '<a class="btn btn-verde" style="margin-top:14px" href="' + SERVER + '/gwallet/' + c.telefone + '">Guardar na Wallet do seu telefone</a>';
-
-  alvo.innerHTML = `
-    <h1 style="font-size:28px">Seja bem-vindo, ${c.nome}!</h1>
-
-    <div class="aviso">
-      <div class="aviso-titulo" id="titulo-boas-vindas">O chopp de boas-vindas é por nossa conta!</div>
-      Guarde o cartão no Wallet do seu celular clicando abaixo. E peça para o garçom escanear o seu QR code.
-      <br><br>Este cartão tem duas funções:
-      <ul style="margin:10px 0 0 18px; padding:0">
-        <li style="margin-bottom:8px">A cada chopp consumido, o garçom escaneia o seu QR code, gerando um novo ponto para você acumular e resgatar prêmios.</li>
-        <li>Apresente o QR code do cartão para seus amigos. Com o cadastro, os pontos de consumo deles geram pontos para você também. (1/10)</li>
-      </ul>
-    </div>
-
-    ${botaoWallet}
-
-    <div class="beneficios">
-      <div class="beneficios-titulo">Seus pontos no clube</div>
-
-      <div class="beneficio-item">
-        <div class="beneficio-badge amarelo tam2">10</div>
-        <div class="beneficio-texto">A cada <strong>10 pontos</strong>, resgate um Chopp Pilsen 300ml em qualquer bar afiliado Clube Backbone.</div>
-      </div>
-
-      <div class="beneficio-item">
-        <div class="beneficio-badge amarelo tam2">50</div>
-        <div class="beneficio-texto">Com <strong>50 pontos</strong>, você ganha ingresso grátis para a visita guiada à Fábrica da Backbone em Visconde de Mauá.</div>
-      </div>
-
-      <div class="beneficio-item" style="margin-bottom:0">
-        <div class="beneficio-badge amarelo tam3">100</div>
-        <div class="beneficio-texto">Com <strong>100 pontos</strong>, uma muda de espécie da Mata Atlântica será plantada em seu nome, na Serra da Mantiqueira.</div>
-      </div>
-    </div>
-
-    <div class="beneficios-fotos">
-      <img src="muda_arvore.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
-      <img src="muda_carlos.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
-      <img src="muda_luiz.jpg" alt="Muda plantada em nome de um sócio, na Serra da Mantiqueira">
-    </div>
-    <div class="beneficios-legenda">Mudas plantadas em nome de sócios, na Serra da Mantiqueira (simulação)</div>
-
-    <div class="beneficios" style="margin-top:14px">
-      <div class="beneficios-titulo">Outros benefícios</div>
-
-      <div class="beneficio-item">
-        <div class="beneficio-badge cinza tam3">20%</div>
-        <div class="beneficio-texto">Desconto de <strong>20%</strong> em itens de vestuário e acessórios da marca Backbone.</div>
-      </div>
-
-      <div class="beneficio-item">
-        <div class="beneficio-badge cinza tam3">$75</div>
-        <div class="beneficio-texto">Desconto de <strong>R$75,00</strong> nos serviços de Chopp Delivery para a sua festa.</div>
-      </div>
-
-      <div class="beneficio-item" style="margin-bottom:0">
-        <div class="beneficio-badge cinza tam3">15%</div>
-        <div class="beneficio-texto">Desconto de <strong>15%</strong> nas pousadas parceiras de Visconde de Mauá.</div>
-      </div>
-    </div>
-
-    <a class="btn" style="background:var(--ambar); color:#151000; margin-top:14px"
-       href="perfil.html?tel=${c.telefone}">Ver meus dados no clube</a>
-  `;
-
-  ajustarTituloUmaLinha(document.getElementById("titulo-boas-vindas"));
-}
-
-/*
- * Encolhe a fonte do titulo ate ele caber numa unica linha. Mede o
- * texto com canvas.measureText() em vez de comparar scrollWidth
- * contra clientWidth do proprio elemento — a tecnica anterior podia
- * falhar se o navegador ainda nao tivesse processado o layout no
- * instante exato da leitura (foi o caso relatado num teste real no
- * simulador mobile do Chrome, com o texto vazando pra fora do box).
- * Medir via canvas independe do estado do layout: pega a largura
- * disponivel do bloco ANTES de mexer em qualquer coisa, e testa o
- * texto contra ela usando a mesma fonte/peso do elemento.
- * Para no minimo de 11px; se nem assim couber, libera quebra de
- * linha (nunca deixa o texto vazar pra fora do box).
- */
-function ajustarTituloUmaLinha(el, minPx = 11){
-  if(!el) return;
-  const disponivel = el.clientWidth;
-  if(!disponivel) return;
-
-  const estilo = getComputedStyle(el);
-  const peso = estilo.fontWeight;
-  const familia = estilo.fontFamily;
-  const texto = el.textContent.toUpperCase(); // o CSS ja mostra em caixa alta — mede igual
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  let fonte = parseFloat(estilo.fontSize);
-  while(fonte > minPx){
-    ctx.font = peso + " " + fonte + "px " + familia;
-    if(ctx.measureText(texto).width <= disponivel) break;
-    fonte -= 0.5;
-  }
-
-  el.style.fontSize = fonte + "px";
-  ctx.font = peso + " " + fonte + "px " + familia;
-  el.style.whiteSpace = (ctx.measureText(texto).width <= disponivel) ? "nowrap" : "normal";
 }
 </script>
 </body>

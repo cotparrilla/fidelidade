@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Entrar</title>
+<title>Clube Cotito — Entrar</title>
 <style>
   :root{
     --preto:#000; --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2; --ambar:#E8A317;
@@ -40,9 +40,9 @@
 </head>
 <body>
 
-<div class="cab"><img src="clube_logo.png" alt="Clube Backbone"></div>
+<div class="cab"><img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px"></div>
 <div class="login">
-  <h1>Faça seu login para entrar na ferramenta do Clube Backbone!</h1>
+  <h1>Faça seu login para entrar na ferramenta do Clube Cotito!</h1>
   <label for="i-id">ID USUÁRIO</label>
   <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ID usuário">
   <label for="i-senha">SENHA</label>
@@ -51,8 +51,9 @@
   <button class="btn" id="b-entrar">ENTRAR</button>
 </div>
 
+<script src="config.js"></script>
 <script>
-const API = "https://backbone-650557630362.us-central1.run.app";
+const API = window.COTITO_API;
 const $ = id => document.getElementById(id);
 
 $("b-entrar").onclick = async () => {
@@ -89,7 +90,7 @@ $("b-entrar").onclick = async () => {
     if(rt.ok){
       const d = await rt.json();
       if(!d.bares || !d.bares.length){
-        erro.textContent = "Seu usuário não tem nenhum bar vinculado. Fale com a Backbone.";
+        erro.textContent = "Seu usuário não tem nenhum bar vinculado. Fale com o Cotito.";
         return;
       }
       localStorage.setItem("bb_gestor", JSON.stringify(d));

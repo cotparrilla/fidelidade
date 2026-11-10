@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
-<title>Clube Backbone — Painel do colab</title>
+<title>Clube Cotito — Painel do colab</title>
 <style>
   :root{
     --preto:#000; --preto2:#141414; --linha:#2B2B2B;
@@ -86,7 +86,7 @@
 <!-- ══ LOGIN ══ -->
 <section id="t-login" class="tela on">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div class="id">PAINEL DO COLAB</div>
   </div>
   <div class="login">
@@ -103,7 +103,7 @@
 <!-- ══ DASHBOARD ══ -->
 <section id="t-dash" class="tela">
   <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
+    <img src="logo_cotito_creme.png" alt="Cotito" style="height:auto;width:110px">
     <div style="display:flex; align-items:center; gap:10px">
       <div class="id" id="dash-nome"></div>
       <button class="sair" id="b-sair">SAIR</button>
@@ -124,9 +124,10 @@
   </div>
 </section>
 
+<script src="config.js"></script>
 <script src="auth.js" data-chaves="bb_colab"></script>
 <script>
-const API = "https://backbone-650557630362.us-central1.run.app";
+const API = window.COTITO_API;
 const $ = id => document.getElementById(id);
 
 let colab = null;
@@ -170,9 +171,9 @@ function blocoPratos(p, pratosNoMes){
   const destaque = p.prato_liberado
     ? `<div style="background:#D8232A;border-radius:10px;padding:14px;text-align:center;margin-top:12px">
          <div style="font-size:20px;font-weight:800;line-height:1.1">Prato executivo liberado!</div>
-         <div style="font-size:13px;color:#FFD3D5;margin-top:6px;line-height:1.35">Mostre o seu QR de indicação ao garçom de ${colab.bar_nome || "seu bar"} para receber. Até resgatar, novos pratos não contam.</div>
+         <div style="font-size:13px;color:#FFD3D5;margin-top:6px;line-height:1.35">Mostre o seu QR de indicação ao atendente de ${colab.bar_nome || "seu bar"} para receber. Até resgatar, novos pratos não contam.</div>
        </div>`
-    : `<div style="background:var(--preto2);border:1px solid var(--linha);border-radius:10px;padding:12px;font-size:13px;color:#D6D4CC;line-height:1.45;margin-top:12px">Ao chegar em ${meta}, mostre o <strong style="color:#FFF">seu QR de indicação</strong> ao garçom de ${colab.bar_nome || "seu bar"} para receber o prato.</div>`;
+    : `<div style="background:var(--preto2);border:1px solid var(--linha);border-radius:10px;padding:12px;font-size:13px;color:#D6D4CC;line-height:1.45;margin-top:12px">Ao chegar em ${meta}, mostre o <strong style="color:#FFF">seu QR de indicação</strong> ao atendente de ${colab.bar_nome || "seu bar"} para receber o prato.</div>`;
   return `<div class="titulo-secao">Pratos dos seus indicados</div>
     <div class="card" style="border-color:#2F62E6;background:#10203F">
       <div style="display:flex;align-items:baseline;gap:10px">
@@ -204,7 +205,7 @@ $("b-entrar").onclick = async () => {
     const d = await r.json();
     if(!r.ok){
       $("erro-login").textContent = d.erro === "colab_inativo"
-        ? "Seu acesso está desativado. Fale com a Backbone."
+        ? "Seu acesso está desativado. Fale com o Cotito."
         : "Código ou senha incorretos.";
       return;
     }

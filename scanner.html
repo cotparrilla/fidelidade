@@ -4,851 +4,342 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#000000">
-<title>Clube Backbone — Scanner</title>
+<meta name="theme-color" content="#E9E1CC">
+<title>Balcão · Clube Cotito</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300;6..72,400&family=Instrument+Sans:wght@400;500;600&family=Xanh+Mono&display=swap">
+<link rel="stylesheet" href="cotito.css">
 <style>
-  :root{
-    --preto:#000; --preto2:#141414; --linha:#333;
-    --branco:#FFF; --cinza-campo:#E4E2DA; --cinza-txt:#A8A8A2;
-    --ambar:#E8A317; --rubro:#D8232A; --verde:#1F7A47;
-    --azul:#2F62E6; /* modo PRATO — cor que nenhuma outra tela usa */
-    --sb: env(safe-area-inset-bottom, 0px);
-  }
-  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%}
-  body{
-    background:var(--preto); color:var(--branco);
-    font:400 20px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-    -webkit-font-smoothing:antialiased; overscroll-behavior:none;
-  }
+  /* Balcão: botões grandes, um toque por ação, leitura de longe. */
+  body{overscroll-behavior:none}
   .tela{display:none; min-height:100dvh; flex-direction:column}
   .tela.on{display:flex}
+  .cab{display:flex; align-items:center; justify-content:space-between; gap:12px;
+       padding:calc(env(safe-area-inset-top,0px) + 14px) 18px 12px; border-bottom:1.5px solid var(--preto)}
+  .cab .logo{width:96px}
+  .cab .quem{font:400 12px var(--f-mono); text-transform:uppercase; letter-spacing:.06em; text-align:right}
+  .sair{background:none; border:1.5px solid var(--preto); font:400 12px var(--f-mono); letter-spacing:.06em;
+        text-transform:uppercase; padding:8px 12px; color:var(--preto)}
+  .abas{display:flex; border-bottom:1.5px solid var(--preto)}
+  .abas button{flex:1; background:none; border:none; padding:12px; font:400 13px var(--f-mono);
+               text-transform:uppercase; letter-spacing:.06em; color:var(--suave)}
+  .abas button.on{color:var(--preto); box-shadow:inset 0 -3px 0 var(--vermelho)}
+  .corpo{flex:1; display:flex; flex-direction:column; gap:14px; padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+         width:100%; max-width:480px; margin:0 auto}
 
-  /* ── HEADER: igual em todas as telas ── */
-  .cab{
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
-    background:var(--preto); padding:calc(env(safe-area-inset-top,0px) + 12px) 18px 12px;
-    border-bottom:1px solid var(--linha); flex-shrink:0;
-  }
-  .cab img{height:40px; width:auto; display:block}
-  .cab .id{
-    font-size:17px; font-weight:700; color:var(--branco);
-    text-align:right; line-height:1.25; letter-spacing:.02em;
-  }
-  .cab .id small{display:block; font-size:13px; font-weight:400; color:var(--cinza-txt)}
-
-  /* ── LOGIN ── */
-  .login{flex:1; display:flex; flex-direction:column; justify-content:center; padding:30px 22px calc(30px + var(--sb))}
-  .login h1{font-size:30px; font-weight:800; line-height:1.15; margin-bottom:34px}
-  label{display:block; font-size:17px; font-weight:700; letter-spacing:.06em; color:var(--branco); margin:0 0 8px 2px}
-  input{
-    width:100%; background:var(--cinza-campo); border:2px solid var(--cinza-campo); color:#111;
-    font-size:26px; font-weight:600; padding:20px; border-radius:14px; margin-bottom:22px;
-  }
-  input::placeholder{color:#8A8880; font-weight:400}
-  input:focus{outline:none; border-color:var(--ambar)}
-
-  .btn{
-    width:100%; border:none; border-radius:16px; padding:24px;
-    font-size:24px; font-weight:800; letter-spacing:.01em;
-  }
-  .btn-1{background:var(--branco); color:#000}
-  .btn-2{background:transparent; color:var(--branco); border:2px solid #555}
-  .btn:active{transform:scale(.98)}
-  .btn[disabled]{opacity:.45}
-  .sair{
-    background:none; border:2px solid #444; color:var(--branco);
-    font-size:15px; font-weight:700; padding:10px 15px; border-radius:999px; flex-shrink:0;
-  }
-
-  /* ── SCANNER ── */
-  .scan{flex:1; display:flex; flex-direction:column; padding:20px 18px calc(24px + var(--sb))}
-  #cam{
-    width:100%; aspect-ratio:1; border-radius:22px; overflow:hidden;
-    background:var(--preto2); border:2px solid var(--linha); position:relative;
-  }
+  #cam{width:100%; aspect-ratio:1; overflow:hidden; background:var(--preto); position:relative}
   #cam video{width:100%!important; height:100%!important; object-fit:cover}
-  #cam::after{
-    content:""; position:absolute; inset:14%; border:4px solid var(--ambar);
-    border-radius:16px; pointer-events:none;
-  }
-  .dica{
-    text-align:center; font-size:30px; font-weight:800; line-height:1.25;
-    margin:auto 0; padding:26px 0;
-  }
+  #cam::after{content:""; position:absolute; inset:14%; border:3px solid var(--amarelo); pointer-events:none}
+  .dica{font-family:var(--f-display); font-weight:300; text-transform:uppercase; font-size:26px; line-height:1.05; text-align:center}
 
-  /* ── MODO PRATO (so em bar que aceita pratos) ── */
-  .faixa-prato{
-    display:none; background:var(--azul); color:#fff; text-align:center;
-    font-size:17px; font-weight:900; letter-spacing:.16em; padding:12px 18px;
-  }
-  body.modo-prato .faixa-prato{display:block}
-  body.modo-prato #cam{border-color:var(--azul)}
-  body.modo-prato #cam::after{border-color:var(--azul)}
-  body.modo-prato .dica{font-size:22px; line-height:1.3; text-wrap:balance}
-  .btn-prato{
-    background:transparent; color:var(--branco); border:3px solid var(--azul);
-    padding:20px; font-size:21px; display:none; align-items:center; justify-content:center; gap:12px;
-  }
-  .btn-prato svg{flex-shrink:0}
-  body.tem-pratos .btn-prato{display:flex}
-  body.modo-prato .btn-prato{display:none}
-  #b-modo-chopp{display:none; padding:20px; font-size:21px}
-  body.modo-prato #b-modo-chopp{display:block}
-  .flood.prato{background:var(--azul); color:#fff}
-  .flood.colab{background:var(--preto); color:var(--branco)}
-  .flood.colab .pt{border-color:var(--azul)}
-  .flood.colab .pt.cheio{background:var(--azul)}
-  .flood.colab .avisinho{background:var(--preto2); border:1px solid var(--linha); color:#D6D4CC}
-  .sub{font-size:16px; font-weight:700; letter-spacing:.06em; opacity:.85; margin:-8px 0 22px; text-transform:uppercase}
-  .sub:empty{display:none}
-  .pill-prato{
-    display:inline-block; vertical-align:middle; margin-left:10px; background:var(--azul); color:#fff;
-    font-size:15px; font-weight:900; letter-spacing:.12em; padding:6px 12px; border-radius:999px;
-  }
-  .selo.prato{background:var(--azul); color:#fff}
-  .tag.prato{background:var(--azul); color:#fff}
-  .tag.prato-resgate{background:#D8232A; color:#fff; box-shadow:0 0 0 2px var(--azul)}
+  .cli{background:var(--preto); color:var(--creme); padding:16px; display:flex; flex-direction:column; gap:10px}
+  .cli .rot{font:400 12px var(--f-mono); text-transform:uppercase; letter-spacing:.06em; color:var(--amarelo)}
+  .cli .nome{font-family:var(--f-display); font-weight:300; font-size:34px; line-height:1; text-transform:uppercase; word-break:break-word}
+  .cli .dots i{border-color:var(--creme)}
+  .cli .dots i.on{background:var(--amarelo); border-color:var(--amarelo)}
+  .cli .dots i.novo{background:var(--vermelho); border-color:var(--vermelho)}
+  .cli .linha{font-size:15px}
 
-  /* ── CONFIRMAÇÃO ── */
-  .flood{
-    flex:1; display:flex; flex-direction:column; justify-content:center;
-    padding:28px 22px; text-align:center;
-  }
-  .flood.pontuar{background:var(--ambar); color:#150F00}
-  .flood.resgatar{background:var(--rubro); color:#fff}
-  .flood.boas{background:var(--verde); color:#fff}
-  .flood.neutro{background:var(--preto); color:var(--branco)}
+  .acoes{display:flex; flex-direction:column; gap:8px}
+  .a{display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%;
+     padding:18px 16px; font:400 15px var(--f-mono); text-transform:uppercase; letter-spacing:.05em; text-align:left; border:none}
+  .a span:last-child{white-space:nowrap}
+  .a.pri{background:var(--amarelo); color:var(--preto)}
+  .a.off{background:transparent; color:var(--suave); border:1.5px dashed rgba(28,24,14,.3)}
+  .a:disabled{cursor:default}
+  .a.pri:active{transform:scale(.99)}
+  .bloq{background:var(--vermelho); color:var(--preto); padding:12px 14px; font-size:15px; line-height:1.35}
+  .bloq b{display:block; font:400 12px var(--f-mono); text-transform:uppercase; letter-spacing:.06em; margin-bottom:2px}
 
-  .acao{font-size:24px; font-weight:900; letter-spacing:.14em; margin-bottom:18px}
-  .nome{font-size:46px; font-weight:800; line-height:1.05; margin-bottom:22px; word-break:break-word}
-  .frase{font-size:32px; line-height:1.25; font-weight:800; margin-bottom:20px}
-  .avisinho{
-    font-size:23px; line-height:1.35; font-weight:700; padding:16px 18px;
-    border-radius:12px; background:rgba(0,0,0,.18); display:block;
-  }
-  .trilha{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin:0 0 26px}
-  .pt{width:22px; height:22px; border-radius:50%; border:3px solid currentColor; opacity:.4}
-  .pt.cheio{background:currentColor; opacity:1}
-  .pt.novo{opacity:1; box-shadow:0 0 0 6px rgba(0,0,0,.2)}
+  .fim{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:14px; text-align:center}
+  .selo{width:110px; height:110px; border-radius:50%; display:grid; place-items:center; font-size:56px; font-weight:600}
+  .selo.ok{background:var(--amarelo); color:var(--preto)}
+  .selo.erro{background:var(--vermelho); color:var(--preto)}
+  .fim h2{font-family:var(--f-display); font-weight:300; text-transform:uppercase; font-size:34px; line-height:1.05}
+  .fim p{font-size:18px; max-width:30ch}
 
-  .acoes{display:flex; gap:12px; padding:16px 18px calc(18px + var(--sb)); background:var(--preto)}
-  .acoes .btn{flex:1; padding:26px 10px}
-
-  /* ── RESULTADO ── */
-  .fim{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:30px 22px}
-  .selo{
-    width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-    font-size:64px; font-weight:700; margin-bottom:28px;
-  }
-  .selo.ok{background:var(--verde); color:#fff}
-  .selo.erro{background:var(--rubro); color:#fff}
-  .fim h2{font-size:38px; font-weight:800; line-height:1.15; margin-bottom:16px}
-  .fim p{font-size:24px; font-weight:600; line-height:1.35; color:var(--branco); max-width:330px}
-  .rodape{padding:16px 18px calc(18px + var(--sb))}
-
-  .erro-msg{color:#FF6B6B; font-size:19px; font-weight:700; margin-bottom:16px; min-height:24px}
-  .carregando{text-align:center; color:var(--cinza-txt); padding:60px 20px; font-size:20px; font-weight:600}
-  .abas{
-    display:flex; gap:6px; padding:10px 18px 0; border-bottom:1px solid #2B2B2B;
-  }
-  .abas button{
-    background:none; border:none; color:var(--cinza-txt); font-size:16px; font-weight:800;
-    padding:8px 14px 12px; cursor:pointer; border-bottom:3px solid transparent; font-family:inherit;
-  }
-  .abas button.on{color:#FFF; border-bottom-color:#D8232A}
-  .feed{padding:14px 18px; overflow-y:auto; flex:1}
-  .tutorial-corpo{flex:1; overflow:hidden; display:flex; flex-direction:column}
-  #tutorial-frame-wrap{flex:1; overflow:hidden; display:flex; flex-direction:column}
-  #tutorial-frame{border:0; display:block; width:100%; flex:1}
-  .tutorial-rodape{padding:16px 18px calc(18px + var(--sb)); background:var(--preto)}
-  .lote{
-    background:#141414; border:1px solid #2B2B2B; border-radius:12px;
-    padding:12px 14px; margin-bottom:10px;
-  }
-  .lote .l1{font-size:18px; font-weight:800; color:#FFF}
-  .lote .l2{font-size:14px; color:var(--cinza-txt); margin-top:2px}
-  .lote .l3{font-size:14px; color:var(--cinza-txt); margin-top:2px}
-  .lote .tag{
-    display:inline-block; margin-left:8px; padding:1px 8px; border-radius:999px;
-    font-size:11px; font-weight:800; vertical-align:middle;
-  }
-  .tag.punch{background:#E8A317; color:#151000}
-  .tag.resgate{background:#D8232A; color:#fff}
-  .tag.bv{background:#1F7A47; color:#FFF}
-  .feed-fim{text-align:center; color:var(--cinza-txt); font-size:13px; padding:14px 0}
+  .feed{display:flex; flex-direction:column; gap:8px}
+  .lote{border-bottom:1px solid var(--linha); padding:10px 0}
+  .lote .l1{font-weight:600; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .lote .l2{font-size:13px; color:var(--suave)}
+  .tag{font:400 11px var(--f-mono); text-transform:uppercase; letter-spacing:.05em; padding:2px 8px}
+  .tag.ponto{background:var(--amarelo)} .tag.mate{background:var(--azul)}
+  .tag.premio{background:var(--vermelho)} .tag.brinde{background:var(--preto); color:var(--creme)}
+  .tag.bloq{border:1px solid var(--vermelho); color:#B3261E}
 </style>
 </head>
 <body>
 
 <!-- ══ LOGIN ══ -->
 <section id="t-login" class="tela on">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div class="id">SCANNER</div>
-  </div>
-  <div class="login">
-    <h1>Entre para registrar chopps.</h1>
-    <label for="i-id">SEU CÓDIGO</label>
-    <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: g01">
-    <label for="i-senha">SENHA</label>
-    <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••">
-    <div class="erro-msg" id="erro-login"></div>
-    <button class="btn btn-1" id="b-entrar">ENTRAR</button>
-  </div>
+  <main>
+    <img class="logo" src="logo_cotito_preto.png" alt="Cotito">
+    <h1>Balcão</h1>
+    <p class="sub">Entre com o código e a senha que o gerente te passou.</p>
+    <div class="campo"><label for="i-id">CÓDIGO</label>
+      <input id="i-id" type="text" autocapitalize="none" autocomplete="username" placeholder="ex.: lu"></div>
+    <div class="campo"><label for="i-senha">SENHA</label>
+      <input id="i-senha" type="password" autocomplete="current-password" placeholder="••••••"></div>
+    <div class="erro" id="erro-login"></div>
+    <button class="btn" id="b-entrar">Entrar</button>
+  </main>
 </section>
 
-<!-- ══ SCANNER ══ -->
+<!-- ══ ESCANEAR ══ -->
 <section id="t-scan" class="tela">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div style="display:flex;align-items:center;gap:12px">
-      <div class="id" id="quem1"></div>
-      <button class="sair" id="b-sair">SAIR</button>
-    </div>
-  </div>
-  <div class="abas">
-    <button class="on" id="ab-escanear">Escanear</button>
-    <button id="ab-atividade">Atividade</button>
-    <button id="ab-tutorial">Tutorial</button>
-  </div>
-  <div class="faixa-prato">MODO PRATO</div>
-  <div class="scan">
+  <div class="cab"><img class="logo" src="logo_cotito_preto.png" alt="Cotito">
+    <div style="display:flex;gap:10px;align-items:center"><div class="quem" data-quem></div><button class="sair" data-sair>Sair</button></div></div>
+  <div class="abas"><button class="on" data-aba="scan">Escanear</button><button data-aba="atividade">Atividade</button></div>
+  <div class="corpo">
     <div id="cam"></div>
-    <p class="dica" id="dica">Aponte a câmera<br>para o QR do cliente</p>
-    <!-- so aparece em bar que aceita pratos (garcom.pratos) -->
-    <button class="btn btn-prato" id="b-modo-prato" aria-label="Escanear prato">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2F62E6" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4.5"></circle></svg>
-      ESCANEAR PRATO
-    </button>
-    <button class="btn btn-2" id="b-modo-chopp">VOLTAR PARA CHOPP</button>
+    <p class="dica">Aponte para o QR<br>do cartão do cliente</p>
   </div>
 </section>
 
-<!-- ══ ATIVIDADE (somente leitura) ══ -->
-<section id="t-atividade" class="tela">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div style="display:flex;align-items:center;gap:12px">
-      <div class="id" id="quem-atividade"></div>
-      <button class="sair" id="b-sair2">SAIR</button>
+<!-- ══ CLIENTE (o que fazer) ══ -->
+<section id="t-cliente" class="tela">
+  <div class="cab"><img class="logo" src="logo_cotito_preto.png" alt="Cotito"><div class="quem" data-quem></div></div>
+  <div class="corpo">
+    <div class="cli">
+      <span class="rot">Cliente</span>
+      <span class="nome" id="c-nome">—</span>
+      <div class="dots" id="c-dots"></div>
+      <span class="linha" id="c-linha"></span>
     </div>
-  </div>
-  <div class="abas">
-    <button id="ab-escanear2">Escanear</button>
-    <button class="on">Atividade</button>
-    <button id="ab-tutorial2">Tutorial</button>
-  </div>
-  <div class="feed" id="feed">
-    <div class="carregando">Carregando…</div>
-  </div>
-</section>
-
-<!-- ══ TUTORIAL / COMO FUNCIONA ══ -->
-<section id="t-tutorial" class="tela">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div style="display:flex;align-items:center;gap:12px">
-      <div class="id" id="quem-tutorial"></div>
-      <button class="sair" id="b-sair3">SAIR</button>
-    </div>
-  </div>
-  <div class="abas" id="abas-tutorial">
-    <button id="ab-escanear3">Escanear</button>
-    <button id="ab-atividade3">Atividade</button>
-    <button class="on">Tutorial</button>
-  </div>
-  <div class="tutorial-corpo" id="tutorial-corpo">
-    <div id="tutorial-frame-wrap">
-      <iframe id="tutorial-frame" src="como_funciona.html" title="Como funciona o Clube Backbone"></iframe>
-    </div>
-    <div class="tutorial-rodape" id="tutorial-rodape">
-      <button class="btn btn-1" id="b-tutorial-continuar">COMEÇAR</button>
-    </div>
-  </div>
-</section>
-
-<!-- ══ CONFIRMAÇÃO ══ -->
-<section id="t-conf" class="tela">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div class="id" id="quem2"></div>
-  </div>
-  <div class="flood" id="flood">
-    <div class="acao" id="c-acao"></div>
-    <div class="nome" id="c-nome"></div>
-    <div class="sub" id="c-sub"></div>
-    <div class="trilha" id="c-trilha"></div>
-    <div class="frase" id="c-frase"></div>
-    <div id="c-aviso"></div>
-  </div>
-  <div class="acoes">
-    <button class="btn btn-2" id="b-cancelar">CANCELAR</button>
-    <button class="btn btn-1" id="b-confirmar">CONFIRMAR</button>
+    <div id="c-bloq"></div>
+    <div class="acoes" id="c-acoes"></div>
+    <button class="btn claro" id="b-voltar">Voltar</button>
   </div>
 </section>
 
 <!-- ══ RESULTADO ══ -->
 <section id="t-fim" class="tela">
-  <div class="cab">
-    <img src="clube_logo.png" alt="Clube Backbone">
-    <div class="id" id="quem-fim"></div>
-  </div>
-  <div class="fim">
-    <div class="selo" id="f-selo"></div>
-    <h2 id="f-titulo"></h2>
-    <p id="f-texto"></p>
-  </div>
-  <div class="rodape">
-    <button class="btn btn-1" id="b-novo">ESCANEAR O PRÓXIMO</button>
+  <div class="cab"><img class="logo" src="logo_cotito_preto.png" alt="Cotito"><div class="quem" data-quem></div></div>
+  <div class="corpo">
+    <div class="fim"><div class="selo" id="f-selo"></div><h2 id="f-titulo"></h2><p id="f-texto"></p></div>
+    <button class="btn" id="b-novo">Escanear o próximo</button>
   </div>
 </section>
 
+<!-- ══ ATIVIDADE ══ -->
+<section id="t-atividade" class="tela">
+  <div class="cab"><img class="logo" src="logo_cotito_preto.png" alt="Cotito">
+    <div style="display:flex;gap:10px;align-items:center"><div class="quem" data-quem></div><button class="sair" data-sair>Sair</button></div></div>
+  <div class="abas"><button data-aba="scan">Escanear</button><button class="on" data-aba="atividade">Atividade</button></div>
+  <div class="corpo"><div class="feed" id="feed"><p class="carregando">Carregando…</p></div></div>
+</section>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="auth.js" data-chaves="bb_garcom"></script>
+<script src="config.js"></script>
+<script src="auth.js" data-chaves="bb_garcom,bb_gestor,bb_admin"></script>
 <script>
-const API = "https://backbone-650557630362.us-central1.run.app";
-
-let garcom = null;
-let leitor = null;
-let pendente = null;
-let modoPrato = false;   // true so entre "ESCANEAR PRATO" e a gravacao do prato
-const PRATOS_PARA_PREMIO = 10;
-
+const API = window.COTITO_API;
+let garcom = null, leitor = null, cliente = null, telefoneAtual = null;
 const $ = id => document.getElementById(id);
 const digitos = s => (s || "").replace(/\D/g, "");
-
+function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function hora(iso){ try{ return new Date(iso).toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"}); }catch(e){ return ""; } }
+function dataHora(iso){
+  try{ const d = new Date(iso);
+    return d.toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"}) + " " + hora(iso); }catch(e){ return iso || "—"; }
+}
 function mostrar(qual){
   document.querySelectorAll(".tela").forEach(t => t.classList.remove("on"));
   $("t-" + qual).classList.add("on");
+  window.scrollTo(0, 0);
 }
 
 /* ── LOGIN ── */
 $("b-entrar").onclick = async () => {
-  const id = $("i-id").value.trim();
-  const senha = $("i-senha").value;
+  const id = $("i-id").value.trim(), senha = $("i-senha").value;
   if(!id || !senha){ $("erro-login").textContent = "Preencha o código e a senha."; return; }
-
-  $("b-entrar").disabled = true;
-  $("b-entrar").textContent = "ENTRANDO…";
+  $("b-entrar").disabled = true; $("b-entrar").textContent = "Entrando…";
   try{
-    const r = await fetch(API + "/login", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({id, senha})
-    });
+    const r = await fetch(API + "/login", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id, senha}) });
     const d = await r.json();
     if(!r.ok){
-      $("erro-login").textContent = d.erro === "garcom_inativo"
-        ? "Seu acesso está desativado. Fale com o gerente."
-        : "Código ou senha incorretos.";
+      $("erro-login").textContent = d.erro === "garcom_inativo" ? "Seu acesso está desativado. Fale com o gerente." : "Código ou senha incorretos.";
       return;
     }
     garcom = d;
     localStorage.setItem("bb_garcom", JSON.stringify(d));
     entrar();
-  }catch(e){
-    $("erro-login").textContent = "Sem conexão. Tente de novo.";
-  }finally{
-    $("b-entrar").disabled = false;
-    $("b-entrar").textContent = "ENTRAR";
-  }
+  }catch(e){ $("erro-login").textContent = "Sem conexão. Tente de novo."; }
+  finally{ $("b-entrar").disabled = false; $("b-entrar").textContent = "Entrar"; }
 };
+$("i-senha").addEventListener("keydown", ev => { if(ev.key === "Enter") $("b-entrar").click(); });
 
-$("b-sair").onclick = () => {
-  localStorage.removeItem("bb_garcom");
-  pararCamera();
-  garcom = null;
-  location.href = "login.html";
-};
+document.querySelectorAll("[data-sair]").forEach(b => b.onclick = () => {
+  try{ localStorage.removeItem("bb_garcom"); }catch(e){}
+  pararCamera(); garcom = null; location.href = "login.html";
+});
+document.querySelectorAll("[data-aba]").forEach(b => b.onclick = () => b.dataset.aba === "scan" ? abrirEscanear() : abrirAtividade());
 
 function entrar(){
-  const txt = garcom.nome + "<small>" + (garcom.bar_nome || garcom.bar_id) + "</small>";
-  ["quem1","quem2","quem-atividade","quem-fim","quem-tutorial"].forEach(k => $(k).innerHTML = txt);
-  aplicarPratos();
-  if(!garcom.tutorial_visto){
-    abrirTutorial();
-  } else {
-    mostrar("scan");
-    iniciarCamera();
-  }
-}
-
-/* ── MODO PRATO ──
-   O botao "ESCANEAR PRATO" so existe em bar com "aceita pratos" ligado.
-   O /login devolve garcom.pratos, mas o admin pode ligar/desligar a
-   qualquer hora e sessoes antigas (ou a entrada do gestor pela URL)
-   nao tem o campo — entao sempre confere no servidor ao entrar,
-   usando o valor salvo so enquanto a resposta nao chega. */
-async function aplicarPratos(){
-  pintarPratos();
-  try{
-    const r = await fetch(API + "/admin/bares");
-    const bares = await r.json();
-    const b = (bares || []).find(x => x.id === garcom.bar_id);
-    garcom.pratos = !!(b && b.pratos);
-    if(localStorage.getItem("bb_garcom")) localStorage.setItem("bb_garcom", JSON.stringify(garcom));
-  }catch(e){ if(garcom.pratos === undefined) garcom.pratos = false; }
-  pintarPratos();
-}
-function pintarPratos(){
-  document.body.classList.toggle("tem-pratos", !!garcom.pratos);
-  if(!garcom.pratos) setModoPrato(false);
-}
-
-function setModoPrato(on){
-  modoPrato = !!on && !!(garcom && garcom.pratos);
-  document.body.classList.toggle("modo-prato", modoPrato);
-  $("dica").innerHTML = modoPrato
-    ? "Aponte para o QR do cliente que comeu um prato"
-    : "Aponte a câmera<br>para o QR do cliente";
-}
-$("b-modo-prato").onclick = () => setModoPrato(true);
-$("b-modo-chopp").onclick = () => setModoPrato(false);
-
-/* Extrai o telefone do QR: aceita a URL /q/<tel> (formato novo)
-   e o telefone puro (cartoes antigos). */
-function extrairTelefone(texto){
-  const m = String(texto).match(/\/q\/(\d{10,13})/);
-  if(m) return m[1];
-  return digitos(texto);
-}
-
-/* QR de indicacao de um colab: URL /c/<id>. Nao e cartao de consumo —
-   serve pra mostrar a contagem de pratos ou entregar o prato do colab. */
-function extrairColab(texto){
-  const m = String(texto).match(/\/c\/([A-Za-z0-9_.-]+)/);
-  return m ? m[1] : null;
-}
-
-
-/* ── ABA ATIVIDADE (somente leitura, scroll infinito em blocos de 30) ── */
-let feedTimer = null;
-let feedOffset = 0;
-let feedTemMais = true;
-let feedCarregando = false;
-
-function abrirAtividade(){
-  pararCamera();
-  setModoPrato(false);
-  mostrar("atividade");
-  $("quem-atividade").innerHTML = $("quem1").innerHTML;
-  carregarFeed(true);
-  clearInterval(feedTimer);
-  feedTimer = setInterval(() => carregarFeed(true), 30000);
-  $("feed").onscroll = () => {
-    const el = $("feed");
-    if(el.scrollTop + el.clientHeight >= el.scrollHeight - 120){
-      carregarFeed(false);
-    }
-  };
-}
-function abrirEscanear(){
-  clearInterval(feedTimer);
-  mostrar("scan");
-  iniciarCamera();
-}
-$("ab-atividade").onclick = abrirAtividade;
-$("ab-escanear2").onclick = abrirEscanear;
-$("b-sair2").onclick = () => $("b-sair").onclick();
-
-/* ── ABA TUTORIAL / COMO FUNCIONA ── */
-function abrirTutorial(){
-  clearInterval(feedTimer);
-  pararCamera();
-  setModoPrato(false);
-  mostrar("tutorial");
-  const primeiroAcesso = !garcom.tutorial_visto;
-  // na revisita (aba Tutorial, já visto antes) fica só os slides — sem botão nenhum
-  $("tutorial-rodape").style.display = primeiroAcesso ? "block" : "none";
-}
-$("ab-tutorial").onclick = abrirTutorial;
-$("ab-tutorial2").onclick = abrirTutorial;
-$("ab-escanear3").onclick = abrirEscanear;
-$("ab-atividade3").onclick = abrirAtividade;
-$("b-sair3").onclick = () => $("b-sair").onclick();
-
-$("b-tutorial-continuar").onclick = async () => {
-  if(!garcom.tutorial_visto){
-    try{
-      await fetch(API + "/garcom/" + encodeURIComponent(garcom.garcom_id) + "/tutorial-visto", { method:"POST" });
-    }catch(e){}
-    garcom.tutorial_visto = true;
-    localStorage.setItem("bb_garcom", JSON.stringify(garcom));
-  }
+  document.querySelectorAll("[data-quem]").forEach(el => el.textContent = garcom.nome || "");
   abrirEscanear();
-};
-
-function horaLocal(iso){
-  try{
-    const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit"}) + " " +
-           d.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"});
-  }catch(e){ return iso || "—"; }
-}
-
-function linhaFeed(e){
-  let tag = '<span class="tag punch">ponto</span>';
-  if(e.tipo === "resgate"){
-    tag = e.tipo_recompensa === "boas_vindas"
-      ? '<span class="tag bv">boas-vindas</span>'
-      : '<span class="tag resgate">resgate</span>';
-  } else if(e.tipo === "prato"){
-    tag = '<span class="tag prato">prato</span>';
-  } else if(e.tipo === "resgate_prato"){
-    tag = '<span class="tag prato-resgate">prato · resgate</span>';
-  }
-  const colab = (e.tipo === "prato" && e.colab) ? ` · indicado por ${e.colab}` : "";
-  return `<div class="lote">
-    <div class="l1">${e.nome}${tag}</div>${colab ? `<div class="l2">${colab.slice(3)}</div>` : ""}
-    <div class="l2">${horaLocal(e.data)}</div>
-    <div class="l3">Garçom: ${e.garcom}</div>
-  </div>`;
-}
-
-/*
- * reset=true  -> recomeça do zero (primeira carga, ou o refresh automático de 30s)
- * reset=false -> busca o próximo bloco de 30 e acrescenta ao final (scroll infinito)
- */
-async function carregarFeed(reset){
-  if(!garcom || feedCarregando) return;
-  if(!reset && !feedTemMais) return;
-
-  feedCarregando = true;
-  if(reset) feedOffset = 0;
-
-  try{
-    const url = API + "/bar/" + encodeURIComponent(garcom.bar_id) +
-      "/atividade?limite=30&offset=" + feedOffset;
-    const r = await fetch(url);
-    const d = await r.json();
-    const eventos = d.eventos || [];
-
-    if(reset){
-      $("feed").innerHTML = eventos.length
-        ? eventos.map(linhaFeed).join("")
-        : '<div class="carregando">Nenhuma leitura registrada ainda.</div>';
-    } else {
-      $("feed").insertAdjacentHTML("beforeend", eventos.map(linhaFeed).join(""));
-    }
-
-    feedOffset += eventos.length;
-    feedTemMais = !!d.tem_mais;
-    if(!feedTemMais && eventos.length){
-      $("feed").insertAdjacentHTML("beforeend", '<div class="feed-fim">Início do histórico.</div>');
-    }
-  }catch(err){
-    if(reset) $("feed").innerHTML = '<div class="carregando">Não foi possível carregar. Verifique a conexão.</div>';
-  }finally{
-    feedCarregando = false;
-  }
 }
 
 /* ── CÂMERA ── */
+function extrairTelefone(texto){
+  const m = String(texto).match(/\/q\/(\d{10,13})/);
+  return m ? m[1] : digitos(texto);
+}
 async function iniciarCamera(){
   if(leitor) return;
-  leitor = new Html5Qrcode("cam", { verbose:false, formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE] });
+  leitor = new Html5Qrcode("cam", { verbose:false, formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE] });
   try{
-    await leitor.start(
-      { facingMode: "environment" },
-      {
-        fps:10, qrbox:{width:240, height:240},
-        // usa a API nativa do navegador quando disponivel (Android/Chrome
-        // recente) — mais robusta que o leitor em JS puro, ajuda bastante
-        // quando a leitura e de tela de celular (reflexo, contraste baixo)
-        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-      },
-      texto => {
-        pararCamera();
-        const colabId = extrairColab(texto);
-        if(colabId) consultarColab(colabId);
-        else if(modoPrato) consultarPrato(extrairTelefone(texto));
-        else consultar(extrairTelefone(texto));
-      },
-      () => {}
-    );
+    await leitor.start({ facingMode:"environment" },
+      { fps:10, qrbox:{width:240, height:240}, experimentalFeatures:{ useBarCodeDetectorIfSupported:true } },
+      texto => { pararCamera(); consultar(extrairTelefone(texto)); }, () => {});
   }catch(e){
-    $("cam").innerHTML = '<div class="carregando">Câmera indisponível.<br>Libere o acesso à câmera e recarregue a página.</div>';
+    $("cam").innerHTML = '<p class="carregando" style="color:var(--creme)">Câmera indisponível.<br>Libere o acesso e recarregue.</p>';
     leitor = null;
   }
 }
 function pararCamera(){
   if(!leitor) return;
-  leitor.stop().catch(()=>{}).finally(() => { try{ leitor.clear(); }catch(e){} leitor = null; });
+  const l = leitor; leitor = null;
+  l.stop().catch(()=>{}).finally(() => { try{ l.clear(); }catch(e){} });
 }
+function abrirEscanear(){ clearInterval(feedTimer); mostrar("scan"); iniciarCamera(); }
 
-/* ── CONSULTA ── */
-async function consultar(telefone){
-  mostrar("conf");
-  $("flood").className = "flood neutro";
-  $("c-acao").textContent = "";
-  $("c-nome").textContent = "Consultando…";
-  $("c-sub").textContent = "";
-  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
-
+/* ── CLIENTE: mostra só o que vale agora ── */
+async function consultar(tel){
+  telefoneAtual = tel;
+  mostrar("cliente");
+  $("c-nome").textContent = "Consultando…"; $("c-dots").innerHTML = ""; $("c-linha").textContent = "";
+  $("c-bloq").innerHTML = ""; $("c-acoes").innerHTML = "";
   try{
-    const r = await fetch(API + "/consumidor/" + telefone);
-    if(!r.ok){ falhar("Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
-    const c = await r.json();
-
-    const meta = c.meta || c.punches_para_recompensa || 10;
-    const punches = c.punches || 0;
-    const abertas = (c.recompensas || []).filter(x => !x.resgatada);
-    abertas.sort((a,b) => (a.tipo === "boas_vindas" ? 0 : 1) - (b.tipo === "boas_vindas" ? 0 : 1));
-
-    let plano;
-    if(abertas.length && abertas[0].tipo === "boas_vindas"){
-      plano = {
-        cor:"boas", acao:"BOAS-VINDAS",
-        frase:"Entregue 1 chopp grátis",
-        aviso:"É o chopp de cadastro. Não conta ponto na cartela.",
-        pontos:{ cheios:punches, meta, novo:-1 }
-      };
-    } else if(abertas.length){
-      plano = {
-        cor:"resgatar", acao:"RESGATE",
-        frase:"Entregue 1 chopp grátis",
-        aviso:"A cartela está cheia. Ao confirmar, ela zera e uma nova começa.",
-        pontos:{ cheios:meta, meta, novo:-1 }
-      };
-    } else {
-      const vira = punches + 1;
-      const fecha = vira >= meta;
-      plano = {
-        cor:"pontuar", acao:"REGISTRAR CHOPP",
-        frase: fecha ? "Este chopp FECHA a cartela" : "Marcar o chopp " + vira + " de " + meta,
-        aviso: fecha
-          ? "Ao confirmar, o cliente ganha 1 chopp grátis. Avise ele."
-          : "Faltam " + (meta - vira) + " para o chopp grátis.",
-        pontos:{ cheios:punches, meta, novo: vira - 1 }
-      };
-    }
-
-    pendente = { tipo:"chopp", telefone, plano };
-    pintar(c.nome, plano);
-  }catch(e){
-    falhar("Sem conexão", "Verifique a internet e tente de novo.");
-  }
+    const r = await fetch(API + "/consumidor/" + tel);
+    if(r.status === 404){ concluir(false, "Cartão não encontrado", "Esse cliente não está no Clube Cotito."); return; }
+    if(!r.ok) throw 0;
+    pintar((await r.json()).resumo);
+  }catch(e){ concluir(false, "Sem conexão", "Verifique a internet e tente de novo."); }
 }
 
-/* ── CONSULTA em modo PRATO (QR do cliente) ──
-   Nunca passa pelo /scan de chopp: nao resgata nem pontua o cliente.
-   Mostra quem credita (colab de origem deste bar) e a contagem dele. */
-async function consultarPrato(telefone){
-  mostrar("conf");
-  $("flood").className = "flood neutro";
-  $("c-acao").textContent = "";
-  $("c-nome").textContent = "Consultando…";
-  $("c-sub").textContent = "";
-  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
+function pintar(r){
+  cliente = r;
+  const meta = r.meta || 10, pts = r.punches || 0;
+  const bloqueado = !!r.proximo_ponto_em;
+  const podePonto = !r.premio_pendente && !bloqueado;
 
+  $("c-nome").textContent = r.nome || "Cliente";
+  $("c-dots").innerHTML = Array.from({length: meta}, (_, i) =>
+    `<i class="${i < pts ? "on" : (podePonto && i === pts ? "novo" : "")}"></i>`).join("");
+  $("c-linha").textContent = r.premio_pendente
+    ? "Cartela cheia: tem executivo grátis para entregar."
+    : (podePonto ? `${pts} pontos. Com este executivo, vai para ${pts + 1}.` : `${pts} pontos.`);
+
+  $("c-bloq").innerHTML = bloqueado
+    ? `<div class="bloq"><b>Ponto já registrado</b>Último ponto às ${hora(r.ultimo_ponto)}. O próximo vale a partir das ${hora(r.proximo_ponto_em)}.</div>`
+    : "";
+
+  const brinde = (r.brindes_pendentes || [])[0];
+  const acoes = [
+    { acao:"ponto", ativo: podePonto, txt:"Pedido com executivo",
+      dir: podePonto ? "+1" : (r.premio_pendente ? "cartela cheia" : "a partir das " + hora(r.proximo_ponto_em)) },
+    { acao:"mate", ativo: r.mate_pendente, txt:"Mate da casa", dir: r.mate_pendente ? "entregar" : "já retirado" },
+    { acao:"premio", ativo: r.premio_pendente, txt:"Executivo grátis", dir: r.premio_pendente ? "entregar" : "no " + meta + "º" },
+    { acao:"brinde", ativo: !!brinde, txt: brinde ? "Brinde: " + brinde.nome : "Brinde de indicação",
+      dir: brinde ? "entregar" : (r.proximo_brinde ? r.proximo_brinde.nome.toLowerCase() + " em " + r.proximo_brinde.qtd : "—") },
+  ];
+  // o que vale agora vem primeiro
+  acoes.sort((a, b) => (b.ativo ? 1 : 0) - (a.ativo ? 1 : 0));
+  $("c-acoes").innerHTML = acoes.map(a =>
+    `<button class="a ${a.ativo ? "pri" : "off"}" data-acao="${a.acao}" ${a.ativo ? "" : "disabled"}>
+       <span>${esc(a.txt)}</span><span>${esc(a.dir)}</span></button>`).join("");
+  $("c-acoes").querySelectorAll("button.pri").forEach(b => b.onclick = () => registrar(b.dataset.acao, b));
+}
+
+$("b-voltar").onclick = () => { cliente = null; abrirEscanear(); };
+
+const ERROS = {
+  bloqueio_ponto: "O ponto deste cartão já foi registrado há pouco.",
+  cartela_cheia: "A cartela está cheia. Entregue o executivo grátis primeiro.",
+  mate_ja_retirado: "O mate deste cliente já foi retirado.",
+  sem_premio: "Este cliente ainda não tem executivo grátis.",
+  sem_brinde: "Não há brinde para entregar.",
+  bar_diferente: "Seu acesso é de outra unidade.",
+  consumidor_nao_encontrado: "Esse cliente não está no Clube Cotito.",
+};
+const TITULOS = { ponto:"Ponto registrado", mate:"Entregue o mate", premio:"Entregue o executivo", brinde:"Entregue o brinde" };
+
+async function registrar(acao, botao){
+  document.querySelectorAll("#c-acoes button").forEach(b => b.disabled = true);
+  botao.querySelector("span:last-child").textContent = "gravando…";
   try{
-    const r = await fetch(API + "/consumidor/" + telefone);
-    if(!r.ok){ falhar("Cartão não encontrado", "Esse cliente não está cadastrado no Clube."); return; }
-    const c = await r.json();
-
-    let plano;
-    // colab de origem deste bar, existente e ativo — senao o backend nao credita
-    let pc = null;
-    if(c.colab && c.colab_bar_id === garcom.bar_id){
-      try{
-        const rc = await fetch(API + "/colab/" + encodeURIComponent(c.colab) + "/pratos");
-        if(rc.ok){ pc = await rc.json(); if(pc.ativo === false) pc = null; }
-      }catch(e){}
-    }
-    if(pc){
-      const ciclo = pc.pratos_ciclo || 0, liberado = !!pc.prato_liberado;
-      const vira = liberado ? ciclo : ciclo + 1;
-      plano = {
-        cor:"prato", acao:"REGISTRAR PRATO", sub:"Indicado por " + c.colab_nome,
-        frase: liberado
-          ? c.colab_nome + " já tem o prato grátis liberado"
-          : "Prato " + vira + " de " + PRATOS_PARA_PREMIO + " para o colab",
-        aviso: liberado
-          ? "Este prato NÃO conta para o colab até ele resgatar o prato grátis. Não conta ponto na cartela do cliente."
-          : (vira >= PRATOS_PARA_PREMIO
-              ? "Ao confirmar, " + c.colab_nome + " libera 1 prato grátis. Não conta ponto na cartela do cliente."
-              : "Não conta ponto na cartela do cliente. Credita " + c.colab_nome + "."),
-        pontos:{ cheios:ciclo, meta:PRATOS_PARA_PREMIO, novo: liberado ? -1 : ciclo }
-      };
-    } else {
-      plano = {
-        cor:"prato", acao:"REGISTRAR PRATO", sub:"Sem colab de origem",
-        frase:"Registra a refeição no bar",
-        aviso:"Não gera ponto nem prêmio. Fica só na contagem de pratos do bar.",
-        pontos:null
-      };
-    }
-
-    pendente = { tipo:"prato", telefone, plano };
-    pintar(c.nome, plano);
-  }catch(e){
-    falhar("Sem conexão", "Verifique a internet e tente de novo.");
-  }
-}
-
-/* ── QR DE COLAB (/c/<id>) ──
-   Em qualquer modo. Nao registra consumo: ou mostra "faltam N"
-   (so VOLTAR) ou entrega o prato grátis do colab (RESGATE). */
-async function consultarColab(colabId){
-  mostrar("conf");
-  $("flood").className = "flood neutro";
-  $("c-acao").textContent = "";
-  $("c-nome").textContent = "Consultando…";
-  $("c-sub").textContent = "";
-  $("c-trilha").innerHTML = ""; $("c-frase").textContent = ""; $("c-aviso").innerHTML = "";
-
-  try{
-    const r = await fetch(API + "/colab/" + encodeURIComponent(colabId) + "/pratos");
-    if(!r.ok){ falhar("QR não reconhecido", "Este QR de colab não existe mais."); return; }
-    const c = await r.json();
-
-    if(c.bar_id !== garcom.bar_id){
-      falhar("Colab de outro bar", c.nome + " é colab de " + (c.bar_nome || "outro bar") + ". Nada a fazer aqui.");
-      return;
-    }
-    if(!c.bar_aceita_pratos || !garcom.pratos){
-      falhar("QR de colab", c.nome + " é um colab. Este QR serve para indicar clientes; não registra consumo.");
-      return;
-    }
-
-    const meta = c.pratos_para_premio || PRATOS_PARA_PREMIO;
-    if(c.prato_liberado){
-      pendente = { tipo:"resgate_prato", colab_id:c.colab_id, plano:null };
-      pintar(c.nome, {
-        cor:"resgatar", acao:"RESGATE", pill:"PRATO", sub:"Colab · QR de indicação",
-        frase:"Entregue 1 prato executivo grátis",
-        aviso:"Os indicados dele fecharam " + meta + " pratos. Ao confirmar, a contagem recomeça do zero.",
-        pontos:{ cheios:meta, meta, novo:-1 }
-      });
-    } else {
-      pendente = null;
-      const faltam = meta - (c.pratos_ciclo || 0);
-      pintar(c.nome, {
-        cor:"colab", acao:"COLAB", sub:"Pratos dos indicados",
-        frase:"Faltam " + faltam + (faltam === 1 ? " prato" : " pratos") + " para o prato grátis",
-        aviso:"Nada a entregar agora. Este QR não registra consumo.",
-        pontos:{ cheios:c.pratos_ciclo || 0, meta, novo:-1 },
-        somenteVoltar:true
-      });
-    }
-  }catch(e){
-    falhar("Sem conexão", "Verifique a internet e tente de novo.");
-  }
-}
-
-function pintar(nome, p){
-  $("flood").className = "flood " + p.cor;
-  $("c-acao").innerHTML = p.acao + (p.pill ? '<span class="pill-prato">' + p.pill + "</span>" : "");
-  $("c-nome").textContent = nome;
-  $("c-sub").textContent = p.sub || "";
-  $("c-frase").textContent = p.frase;
-  $("c-aviso").innerHTML = '<span class="avisinho">' + p.aviso + "</span>";
-  let html = "";
-  if(p.pontos){
-    for(let i = 0; i < p.pontos.meta; i++){
-      const cls = ["pt"];
-      if(i < p.pontos.cheios) cls.push("cheio");
-      if(i === p.pontos.novo) cls.push("cheio","novo");
-      html += '<span class="' + cls.join(" ") + '"></span>';
-    }
-  }
-  $("c-trilha").innerHTML = html;
-  // tela so de consulta (colab sem prato liberado): um botao VOLTAR, sem confirmar
-  $("b-confirmar").style.display = p.somenteVoltar ? "none" : "";
-  $("b-cancelar").textContent = p.somenteVoltar ? "VOLTAR" : "CANCELAR";
-}
-
-$("b-cancelar").onclick = () => { pendente = null; mostrar("scan"); iniciarCamera(); };
-
-/* erros do /scan-prato em linguagem de garcom */
-function mensagemErroPrato(erro){
-  return ({
-    bar_nao_aceita_pratos: "Este bar não está com pratos ligado. Fale com o gerente.",
-    consumidor_nao_encontrado: "Esse cliente não está cadastrado no Clube.",
-    bar_diferente: "Seu acesso é de outro bar.",
-  })[erro] || (erro || "Tente novamente.");
-}
-
-/* ── CONFIRMA ── */
-$("b-confirmar").onclick = async () => {
-  if(!pendente) return;
-  $("b-confirmar").disabled = true;
-  $("b-confirmar").textContent = "GRAVANDO…";
-  try{
-    if(pendente.tipo === "prato"){
-      const r = await fetch(API + "/scan-prato", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
-      });
-      const d = await r.json();
-      if(!r.ok){ falhar("Não deu certo", mensagemErroPrato(d.erro)); return; }
-      setModoPrato(false);  // o padrao e sempre chopp: prato e uma acao deliberada por vez
-      concluir("prato", "Prato registrado", d.mensagem_garcom || "");
-      return;
-    }
-    if(pendente.tipo === "resgate_prato"){
-      const r = await fetch(API + "/resgatar-prato", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ colab_id: pendente.colab_id, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
-      });
-      const d = await r.json();
-      if(!r.ok){ falhar("Não deu certo", d.erro === "prato_nao_liberado" ? "O colab ainda não fechou os pratos." : (d.erro || "Tente novamente.")); return; }
-      setModoPrato(false);
-      concluir("ok", "Entregue o prato", d.mensagem_garcom || "");
-      return;
-    }
-
     const r = await fetch(API + "/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ telefone: pendente.telefone, garcom_id: garcom.garcom_id, bar: garcom.bar_id })
+      body: JSON.stringify({ telefone: telefoneAtual, garcom_id: garcom.garcom_id || garcom.gestor_id || garcom.admin_id,
+                             bar: garcom.bar_id || "cotito", acao })
     });
     const d = await r.json();
-    if(!r.ok){ falhar("Não deu certo", d.erro || "Tente novamente."); return; }
-
-    concluir("ok",
-      d.acao === "resgate" ? "Entregue o chopp"
-        : (d.recompensa_gerada ? "Cartela fechada!" : "Chopp registrado"),
-      d.mensagem_garcom || "");
+    if(!r.ok){
+      concluir(false, "Não registrado", ERROS[d.erro] || "Tente de novo.");
+      return;
+    }
+    const titulo = acao === "ponto" && d.recompensa_gerada ? "Cartela fechada!" : TITULOS[acao];
+    concluir(true, titulo, d.mensagem_garcom || "");
   }catch(e){
-    falhar("Sem conexão", (pendente && pendente.tipo === "prato" ? "O prato" : "O chopp") + " NÃO foi registrado. Tente de novo.");
-  }finally{
-    $("b-confirmar").disabled = false;
-    $("b-confirmar").textContent = "CONFIRMAR";
+    concluir(false, "Sem conexão", "Nada foi registrado. Tente de novo.");
   }
-};
+}
 
-function concluir(tipo, titulo, texto){
-  $("f-selo").className = "selo " + tipo;
-  $("f-selo").textContent = tipo === "erro" ? "!" : "✓";
+function concluir(ok, titulo, texto){
+  $("f-selo").className = "selo " + (ok ? "ok" : "erro");
+  $("f-selo").textContent = ok ? "✓" : "!";
   $("f-titulo").textContent = titulo;
   $("f-texto").textContent = texto;
-  pendente = null;
   mostrar("fim");
 }
-function falhar(t, x){ concluir("erro", t, x); }
+$("b-novo").onclick = abrirEscanear;
 
-$("b-novo").onclick = () => { mostrar("scan"); iniciarCamera(); };
+/* ── ATIVIDADE (somente leitura) ── */
+let feedTimer = null, feedOffset = 0, feedTemMais = true, feedCarregando = false;
+function abrirAtividade(){
+  pararCamera(); mostrar("atividade"); carregarFeed(true);
+  clearInterval(feedTimer); feedTimer = setInterval(() => carregarFeed(true), 30000);
+}
+window.addEventListener("scroll", () => {
+  if(!$("t-atividade").classList.contains("on")) return;
+  if(window.innerHeight + window.scrollY >= document.body.scrollHeight - 120) carregarFeed(false);
+});
+function linhaFeed(e){
+  let tag = '<span class="tag ponto">ponto</span>';
+  if(e.tipo === "resgate") tag = e.tipo_recompensa === "boas_vindas" ? '<span class="tag mate">mate</span>' : '<span class="tag premio">executivo grátis</span>';
+  else if(e.tipo === "brinde") tag = `<span class="tag brinde">${esc(e.brinde || "brinde")}</span>`;
+  else if(e.tipo === "ponto_bloqueado") tag = '<span class="tag bloq">ponto recusado (2 h)</span>';
+  return `<div class="lote"><div class="l1">${esc(e.nome)} ${tag}</div>
+          <div class="l2">${dataHora(e.data)} · ${esc(e.garcom)}</div></div>`;
+}
+async function carregarFeed(reset){
+  if(!garcom || feedCarregando || (!reset && !feedTemMais)) return;
+  feedCarregando = true;
+  if(reset) feedOffset = 0;
+  try{
+    const r = await fetch(API + "/bar/" + encodeURIComponent(garcom.bar_id || "cotito") + "/atividade?limite=30&offset=" + feedOffset);
+    const d = await r.json();
+    const ev = (d.eventos || []).filter(e => !["prato","resgate_prato"].includes(e.tipo));
+    if(reset) $("feed").innerHTML = ev.length ? ev.map(linhaFeed).join("") : '<p class="carregando">Nenhuma leitura ainda.</p>';
+    else $("feed").insertAdjacentHTML("beforeend", ev.map(linhaFeed).join(""));
+    feedOffset += (d.eventos || []).length;
+    feedTemMais = !!d.tem_mais;
+  }catch(e){
+    if(reset) $("feed").innerHTML = '<p class="carregando">Não foi possível carregar.</p>';
+  }finally{ feedCarregando = false; }
+}
 
 /* ── INÍCIO ── */
 (function(){
-  // entrada direta vinda do botao "Scanner" do painel do gestor —
-  // o gestor ja provou quem e no login-gestor, nao pede senha de novo.
-  // Fica so na memoria (nao grava em bb_garcom) para nao sobrescrever
-  // a sessao salva de um garcom de verdade que use o mesmo aparelho.
-  const params = new URLSearchParams(location.search);
-  if(params.has("gestor_id")){
-    garcom = {
-      garcom_id: params.get("gestor_id"),
-      nome: params.get("nome") || "",
-      bar_id: params.get("bar_id") || "",
-      bar_nome: params.get("bar_nome") || "",
-      tutorial_visto: true,
-    };
-    entrar();
-    return;
+  // entrada pelo botão "Scanner" do painel do gerente (?gestor_id=...)
+  const p = new URLSearchParams(location.search);
+  if(p.has("gestor_id")){
+    garcom = { garcom_id: p.get("gestor_id"), nome: p.get("nome") || "", bar_id: p.get("bar_id") || "cotito" };
+    entrar(); return;
   }
-
-  const salvo = localStorage.getItem("bb_garcom");
+  let salvo = null;
+  try{ salvo = localStorage.getItem("bb_garcom"); }catch(e){}
   if(salvo){ try{ garcom = JSON.parse(salvo); entrar(); return; }catch(e){} }
   mostrar("login");
 })();

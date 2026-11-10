@@ -148,7 +148,10 @@ iPhone. Concentre texto e elementos importantes no **centro** da arte.
 `APPLE_TEAM_ID`, `PASS_TYPE_ID`, `ORG_NAME`, `WEB_SERVICE_URL`, `APNS_HOST`,
 `APPLE_CERT_B64`, `APPLE_KEY_B64`, `APPLE_WWDR_B64`, `GOOGLE_WALLET_ISSUER_ID`,
 `GOOGLE_WALLET_KEY_B64`, `CARDAPIO_URL`, `PERFIL_URL`, `LOJA_URL`, `HERO_VERSAO`,
-`SECRET_KEY` (assina os logins; sem ela todos saem a cada deploy).
+`SECRET_KEY` (assina os logins; sem ela todos saem a cada deploy), `PAGES_URL` (endereço das
+telas no GitHub Pages, padrão `https://cotparrilla.github.io/fidelidade`), `BUCKET_NAME`
+(padrão `cotito-fidelidade`). Nas telas, o endereço do servidor fica num lugar só:
+`config.js` (`window.COTITO_API`).
 **Nunca** coloque chaves no repositório nem em conversa. Se uma chave vazar, revogue e
 crie outra.
 
