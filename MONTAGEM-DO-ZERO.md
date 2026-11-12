@@ -61,6 +61,12 @@ os criou; com conta própria, o ativo acompanha quem for dono do restaurante.
 2. Inscrever-se no Apple Developer Program (anuidade em dólar, paga no cartão).
 3. Aguardar a aprovação da Apple. Só depois dela é possível criar Pass Type ID.
 
+**Cotito:** os passos 2 a 5 abaixo estão em `infra/ligar-apple-wallet.sh`, em duas etapas no
+Cloud Shell: `pedido` (gera a chave privada em `~/cotito-apple/` e o CSR para enviar à Apple)
+e `instalar` (lê o `pass.cer` enviado ao Cloud Shell, confere o par com a chave, baixa o WWDR
+G4, extrai Pass Type ID e Team ID do certificado e grava as variáveis no Cloud Run).
+Pass Type ID escolhido: `pass.com.cotparrilla.cotito`.
+
 **Depois de aprovada:**
 1. Em Certificates, Identifiers & Profiles › Identifiers: criar uma **Pass Type ID**
    (ex.: `pass.com.<restaurante>.fidelidade`).
