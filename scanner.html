@@ -32,6 +32,12 @@
   #cam::after{content:""; position:absolute; inset:5%; border:3px solid var(--amarelo); pointer-events:none}
   #cam #qr-shaded-region{border-width:0!important}
   .dica{font-family:var(--f-display); font-weight:300; text-transform:uppercase; font-size:26px; line-height:1.05; text-align:center}
+  .digitar{display:flex; flex-direction:column; gap:6px; border-top:1.5px solid var(--preto); padding-top:14px}
+  .digitar label{font:400 12px var(--f-mono); letter-spacing:.08em}
+  .linha-dig{display:flex; gap:8px}
+  .linha-dig input{flex:1; min-width:0; font-size:18px}
+  .linha-dig .btn{width:auto; padding:0 18px}
+  .tag.dig{border:1px solid var(--preto)}
 
   .cli{background:var(--preto); color:var(--creme); padding:16px; display:flex; flex-direction:column; gap:10px}
   .cli .rot{font:400 12px var(--f-mono); text-transform:uppercase; letter-spacing:.06em; color:var(--amarelo)}
@@ -94,6 +100,14 @@
   <div class="corpo">
     <div id="cam"></div>
     <p class="dica">Aponte para o QR<br>do cartão do cliente</p>
+    <form class="digitar" id="f-digitar" autocomplete="off">
+      <label for="i-tel">OU DIGITE O CELULAR DO CLIENTE</label>
+      <div class="linha-dig">
+        <input id="i-tel" type="tel" inputmode="numeric" placeholder="(21) 99999-9999">
+        <button class="btn" type="submit">Buscar</button>
+      </div>
+      <div class="erro" id="erro-tel"></div>
+    </form>
   </div>
 </section>
 
@@ -135,7 +149,7 @@
 <script src="auth.js" data-chaves="bb_garcom,bb_gestor,bb_admin"></script>
 <script>
 const API = window.COTITO_API;
-let garcom = null, leitor = null, cliente = null, telefoneAtual = null;
+let garcom = null, leitor = null, cliente = null, telefoneAtual = null, origemAtual = "qr";
 const $ = id => document.getElementById(id);
 const digitos = s => (s || "").replace(/\D/g, "");
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -214,8 +228,24 @@ function pararCamera(){
 function abrirEscanear(){ clearInterval(feedTimer); mostrar("scan"); iniciarCamera(); }
 
 /* ── CLIENTE: mostra só o que vale agora ── */
-async function consultar(tel){
+/* ── DIGITAR O CELULAR (quando o QR não lê) ── */
+$("i-tel").addEventListener("input", () => {
+  const el = $("i-tel"); let d = digitos(el.value).slice(0, 11), f = d;
+  if(d.length > 2) f = "(" + d.slice(0,2) + ") " + d.slice(2);
+  if(d.length > 7) f = "(" + d.slice(0,2) + ") " + d.slice(2,7) + "-" + d.slice(7);
+  el.value = f;
+});
+$("f-digitar").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const d = digitos($("i-tel").value);
+  if(d.length < 10 || d.length > 11){ $("erro-tel").textContent = "Confira o DDD e o número."; return; }
+  $("erro-tel").textContent = ""; $("i-tel").value = ""; $("i-tel").blur();
+  pararCamera(); consultar("55" + d, "digitado");
+});
+
+async function consultar(tel, origem){
   telefoneAtual = tel;
+  origemAtual = origem || "qr";
   mostrar("cliente");
   $("c-nome").textContent = "Consultando…"; $("c-dots").innerHTML = ""; $("c-linha").textContent = "";
   $("c-bloq").innerHTML = ""; $("c-acoes").innerHTML = "";
@@ -280,7 +310,7 @@ async function registrar(acao, botao){
   try{
     const r = await fetch(API + "/scan", {
       method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ telefone: telefoneAtual, garcom_id: garcom.garcom_id || garcom.gestor_id || garcom.admin_id,
+      body: JSON.stringify({ telefone: telefoneAtual, origem: origemAtual, garcom_id: garcom.garcom_id || garcom.gestor_id || garcom.admin_id,
                              bar: garcom.bar_id || "cotito", acao })
     });
     const d = await r.json();
@@ -320,7 +350,7 @@ function linhaFeed(e){
   else if(e.tipo === "brinde") tag = `<span class="tag brinde">${esc(e.brinde || "brinde")}</span>`;
   else if(e.tipo === "ponto_bloqueado") tag = '<span class="tag bloq">ponto recusado (2 h)</span>';
   return `<div class="lote"><div class="l1">${esc(e.nome)} ${tag}</div>
-          <div class="l2">${dataHora(e.data)} · ${esc(e.garcom)}</div></div>`;
+          <div class="l2">${dataHora(e.data)} · ${esc(e.garcom)}${e.origem === "digitado" ? ' · <span class="tag dig">digitado</span>' : ""}</div></div>`;
 }
 async function carregarFeed(reset){
   if(!garcom || feedCarregando || (!reset && !feedTemMais)) return;

@@ -320,10 +320,12 @@ def scan():
         r = _resumo_cliente(consumidor)
         acao = "mate" if r["mate_pendente"] else "premio" if r["premio_pendente"] else "ponto"
 
+    origem = "digitado" if dados.get("origem") == "digitado" else "qr"
+
     def evento(tipo, **extra):
         storage.salvar_evento({
             "id": str(uuid.uuid4()), "tipo": tipo, "telefone": telefone, "bar": bar,
-            "garcom_id": garcom_id, "data": agora(), **extra,
+            "garcom_id": garcom_id, "data": agora(), "origem": origem, **extra,
         })
 
     def resposta(acao_feita, mensagem, push=None, **extra):
@@ -1579,6 +1581,7 @@ def atividade_bar(bar_id):
             "tipo": e.get("tipo"),
             "tipo_recompensa": e.get("tipo_recompensa"),
             "brinde": e.get("brinde"),
+            "origem": e.get("origem", "qr"),
             "colab": colabs.get(e.get("colab")) if e.get("colab") else None,
         } for e in pagina],
         "offset": offset,
