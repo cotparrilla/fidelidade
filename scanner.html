@@ -29,7 +29,8 @@
 
   #cam{width:100%; aspect-ratio:1; overflow:hidden; background:var(--preto); position:relative}
   #cam video{width:100%!important; height:100%!important; object-fit:cover}
-  #cam::after{content:""; position:absolute; inset:14%; border:3px solid var(--amarelo); pointer-events:none}
+  #cam::after{content:""; position:absolute; inset:5%; border:3px solid var(--amarelo); pointer-events:none}
+  #cam #qr-shaded-region{border-width:0!important}
   .dica{font-family:var(--f-display); font-weight:300; text-transform:uppercase; font-size:26px; line-height:1.05; text-align:center}
 
   .cli{background:var(--preto); color:var(--creme); padding:16px; display:flex; flex-direction:column; gap:10px}
@@ -189,9 +190,17 @@ async function iniciarCamera(){
   if(leitor) return;
   leitor = new Html5Qrcode("cam", { verbose:false, formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE] });
   try{
+    // Leitura mais fácil: câmera em alta resolução com foco contínuo, mais
+    // quadros por segundo e área de leitura quase do tamanho da imagem
+    // (antes era só um quadrado de 240 px no meio).
     await leitor.start({ facingMode:"environment" },
-      { fps:10, qrbox:{width:240, height:240}, experimentalFeatures:{ useBarCodeDetectorIfSupported:true } },
-      texto => { pararCamera(); consultar(extrairTelefone(texto)); }, () => {});
+      { fps:20,
+        qrbox:(w, h) => { const l = Math.floor(Math.min(w, h) * 0.9); return { width:l, height:l }; },
+        aspectRatio:1,
+        videoConstraints:{ facingMode:"environment", width:{ ideal:1920 }, height:{ ideal:1080 },
+                           advanced:[{ focusMode:"continuous" }] },
+        experimentalFeatures:{ useBarCodeDetectorIfSupported:true } },
+      texto => { pararCamera(); if(navigator.vibrate) navigator.vibrate(60); consultar(extrairTelefone(texto)); }, () => {});
   }catch(e){
     $("cam").innerHTML = '<p class="carregando" style="color:var(--creme)">Câmera indisponível.<br>Libere o acesso e recarregue.</p>';
     leitor = null;
