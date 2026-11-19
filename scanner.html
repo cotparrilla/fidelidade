@@ -260,8 +260,9 @@ async function consultar(tel, origem){
 function pintar(r){
   cliente = r;
   const meta = r.meta || 10, pts = r.punches || 0;
+  const travadoDig = origemAtual === "digitado" && r.digitado_hoje;
   const bloqueado = !!r.proximo_ponto_em;
-  const podePonto = !r.premio_pendente && !bloqueado;
+  const podePonto = !r.premio_pendente && !bloqueado && !travadoDig;
 
   $("c-nome").textContent = r.nome || "Cliente";
   $("c-dots").innerHTML = Array.from({length: meta}, (_, i) =>
@@ -270,7 +271,9 @@ function pintar(r){
     ? "Cartela cheia: tem executivo grátis para entregar."
     : (podePonto ? `${pts} pontos. Com este executivo, vai para ${pts + 1}.` : `${pts} pontos.`);
 
-  $("c-bloq").innerHTML = bloqueado
+  $("c-bloq").innerHTML = travadoDig
+    ? `<div class="bloq"><b>Limite do número digitado</b>Este cliente já recebeu um benefício pelo número digitado hoje. Peça para ele mostrar o QR do cartão.</div>`
+    : bloqueado
     ? `<div class="bloq"><b>Ponto já registrado</b>Último ponto às ${hora(r.ultimo_ponto)}. O próximo vale a partir das ${hora(r.proximo_ponto_em)}.</div>`
     : "";
 
@@ -278,9 +281,9 @@ function pintar(r){
   const acoes = [
     { acao:"ponto", ativo: podePonto, txt:"Pedido com executivo",
       dir: podePonto ? "+1" : (r.premio_pendente ? "cartela cheia" : "a partir das " + hora(r.proximo_ponto_em)) },
-    { acao:"mate", ativo: r.mate_pendente, txt:"Mate da casa", dir: r.mate_pendente ? "entregar" : "já retirado" },
-    { acao:"premio", ativo: r.premio_pendente, txt:"Executivo grátis", dir: r.premio_pendente ? "entregar" : "no " + meta + "º" },
-    { acao:"brinde", ativo: !!brinde, txt: brinde ? "Brinde: " + brinde.nome : "Brinde de indicação",
+    { acao:"mate", ativo: r.mate_pendente && !travadoDig, txt:"Mate da casa", dir: r.mate_pendente ? "entregar" : "já retirado" },
+    { acao:"premio", ativo: r.premio_pendente && !travadoDig, txt:"Executivo grátis", dir: r.premio_pendente ? "entregar" : "no " + meta + "º" },
+    { acao:"brinde", ativo: !!brinde && !travadoDig, txt: brinde ? "Brinde: " + brinde.nome : "Brinde de indicação",
       dir: brinde ? "entregar" : (r.proximo_brinde ? r.proximo_brinde.nome.toLowerCase() + " em " + r.proximo_brinde.qtd : "—") },
   ];
   // o que vale agora vem primeiro
@@ -301,6 +304,7 @@ const ERROS = {
   sem_brinde: "Não há brinde para entregar.",
   bar_diferente: "Seu acesso é de outra unidade.",
   consumidor_nao_encontrado: "Esse cliente não está no Clube Cotito.",
+  limite_digitado: "Pelo número digitado, só 1 benefício por cliente por dia. Peça o QR do cartão.",
 };
 const TITULOS = { ponto:"Ponto registrado", mate:"Entregue o mate", premio:"Entregue o executivo", brinde:"Entregue o brinde" };
 
@@ -349,6 +353,7 @@ function linhaFeed(e){
   if(e.tipo === "resgate") tag = e.tipo_recompensa === "boas_vindas" ? '<span class="tag mate">mate</span>' : '<span class="tag premio">executivo grátis</span>';
   else if(e.tipo === "brinde") tag = `<span class="tag brinde">${esc(e.brinde || "brinde")}</span>`;
   else if(e.tipo === "ponto_bloqueado") tag = '<span class="tag bloq">ponto recusado (2 h)</span>';
+  else if(e.tipo === "digitado_recusado") tag = '<span class="tag bloq">recusado (digitado 2x no dia)</span>';
   return `<div class="lote"><div class="l1">${esc(e.nome)} ${tag}</div>
           <div class="l2">${dataHora(e.data)} · ${esc(e.garcom)}${e.origem === "digitado" ? ' · <span class="tag dig">digitado</span>' : ""}</div></div>`;
 }

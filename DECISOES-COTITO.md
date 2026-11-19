@@ -34,6 +34,10 @@ decisões. Não pergunte de novo o que está aqui.
 - **Bloqueio de 2 horas:** o mesmo cartão não ganha outro ponto antes de 2 h do último.
   O scanner mostra o horário do último ponto e a partir de quando vale o próximo, e o
   painel do dono registra a tentativa.
+- **Celular digitado no balcão** (quando o QR não lê): permitido, mas **no máximo 1
+  benefício por cliente por dia** por esse caminho (qualquer ação: mate, ponto, prêmio,
+  brinde). Pelo QR continua valendo só o bloqueio de 2 h. Tudo que é digitado fica marcado
+  como "digitado" na aba Atividade; as tentativas recusadas também aparecem.
 - **Meta: 10 pontos = 1 executivo grátis.** O prêmio não é um prato específico.
 - Prêmio resgatado não conta ponto (regra da base, mantida).
 - Remover os marcos de 50 e 100 (árvores) da base.
