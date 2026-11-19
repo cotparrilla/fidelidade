@@ -30,7 +30,6 @@
   #cam{width:100%; aspect-ratio:1; overflow:hidden; background:var(--preto); position:relative}
   #cam video{width:100%!important; height:100%!important; object-fit:cover}
   #cam::after{content:""; position:absolute; inset:5%; border:3px solid var(--amarelo); pointer-events:none}
-  #cam #qr-shaded-region{border-width:0!important}
   .dica{font-family:var(--f-display); font-weight:300; text-transform:uppercase; font-size:26px; line-height:1.05; text-align:center}
   .digitar{display:flex; flex-direction:column; gap:6px; border-top:1.5px solid var(--preto); padding-top:14px}
   .digitar label{font:400 12px var(--f-mono); letter-spacing:.08em}
@@ -144,12 +143,12 @@
   <div class="corpo"><div class="feed" id="feed"><p class="carregando">Carregando…</p></div></div>
 </section>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="vendor/jsQR.js"></script>
 <script src="config.js"></script>
 <script src="auth.js" data-chaves="bb_garcom,bb_gestor,bb_admin"></script>
 <script>
 const API = window.COTITO_API;
-let garcom = null, leitor = null, cliente = null, telefoneAtual = null, origemAtual = "qr";
+let garcom = null, cliente = null, telefoneAtual = null, origemAtual = "qr";
 const $ = id => document.getElementById(id);
 const digitos = s => (s || "").replace(/\D/g, "");
 function esc(s){ return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -200,31 +199,92 @@ function extrairTelefone(texto){
   const m = String(texto).match(/\/q\/(\d{10,13})/);
   return m ? m[1] : digitos(texto);
 }
+/*
+ * Leitor próprio: câmera do navegador + decodificador.
+ * - Android/Chrome: usa o leitor nativo do aparelho (BarcodeDetector), rápido.
+ * - iPhone/Safari (não tem o nativo): usa o jsQR (vendor/jsQR.js).
+ * Lê um quadrado central da imagem, reduzido, várias vezes por segundo.
+ */
+let fluxo = null, video = null, detector = null, lendo = false, timerLeitura = null;
+const tela = document.createElement("canvas");
+const ctx = tela.getContext("2d", { willReadFrequently: true });
+
 async function iniciarCamera(){
-  if(leitor) return;
-  leitor = new Html5Qrcode("cam", { verbose:false, formatsToSupport:[Html5QrcodeSupportedFormats.QR_CODE] });
+  if(fluxo) return;
+  const caixa = $("cam");
+  caixa.innerHTML = "";
+  video = document.createElement("video");
+  video.setAttribute("playsinline", ""); video.muted = true; video.autoplay = true;
+  caixa.appendChild(video);
   try{
-    // Leitura mais fácil: câmera em alta resolução com foco contínuo, mais
-    // quadros por segundo e área de leitura quase do tamanho da imagem
-    // (antes era só um quadrado de 240 px no meio).
-    await leitor.start({ facingMode:"environment" },
-      { fps:20,
-        qrbox:(w, h) => { const l = Math.floor(Math.min(w, h) * 0.9); return { width:l, height:l }; },
-        aspectRatio:1,
-        videoConstraints:{ facingMode:"environment", width:{ ideal:1920 }, height:{ ideal:1080 },
-                           advanced:[{ focusMode:"continuous" }] },
-        experimentalFeatures:{ useBarCodeDetectorIfSupported:true } },
-      texto => { pararCamera(); if(navigator.vibrate) navigator.vibrate(60); consultar(extrairTelefone(texto)); }, () => {});
+    fluxo = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    // foco contínuo quando o aparelho permite
+    try{
+      const trilha = fluxo.getVideoTracks()[0];
+      const cap = trilha.getCapabilities ? trilha.getCapabilities() : {};
+      if(cap.focusMode && cap.focusMode.includes("continuous")) await trilha.applyConstraints({ advanced:[{ focusMode:"continuous" }] });
+    }catch(e){}
+    video.srcObject = fluxo;
+    await video.play();
   }catch(e){
-    $("cam").innerHTML = '<p class="carregando" style="color:var(--creme)">Câmera indisponível.<br>Libere o acesso e recarregue.</p>';
-    leitor = null;
+    pararCamera();
+    caixa.innerHTML = '<p class="carregando" style="color:var(--creme)">Câmera indisponível.<br>Libere o acesso à câmera e recarregue.</p>';
+    return;
   }
+  detector = null;
+  if("BarcodeDetector" in window){
+    try{
+      const f = await BarcodeDetector.getSupportedFormats();
+      if(f.includes("qr_code")) detector = new BarcodeDetector({ formats:["qr_code"] });
+    }catch(e){}
+  }
+  lendo = false;
+  timerLeitura = setInterval(lerQuadro, 120);
 }
+
+async function lerQuadro(){
+  if(lendo || !video || video.readyState < 2) return;
+  lendo = true;
+  try{
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) return;
+    const lado = Math.floor(Math.min(vw, vh) * 0.9);          // quadrado central
+    const sx = Math.floor((vw - lado) / 2), sy = Math.floor((vh - lado) / 2);
+    const alvo = Math.min(lado, 640);                           // reduz para ler rápido
+    tela.width = alvo; tela.height = alvo;
+    ctx.drawImage(video, sx, sy, lado, lado, 0, 0, alvo, alvo);
+    let texto = null;
+    if(detector){
+      const achados = await detector.detect(tela);
+      if(achados.length) texto = achados[0].rawValue;
+    }else if(window.jsQR){
+      const img = ctx.getImageData(0, 0, alvo, alvo);
+      const r = jsQR(img.data, alvo, alvo, { inversionAttempts: "dontInvert" });
+      if(r) texto = r.data;
+    }
+    if(texto && /\d{10,13}/.test(texto)){
+      pararCamera();
+      if(navigator.vibrate) navigator.vibrate(60);
+      consultar(extrairTelefone(texto));
+    }
+  }catch(e){
+    // um quadro ruim não para a leitura
+  }finally{ lendo = false; }
+}
+
 function pararCamera(){
-  if(!leitor) return;
-  const l = leitor; leitor = null;
-  l.stop().catch(()=>{}).finally(() => { try{ l.clear(); }catch(e){} });
+  clearInterval(timerLeitura); timerLeitura = null;
+  if(fluxo){ fluxo.getTracks().forEach(t => t.stop()); fluxo = null; }
+  if(video){ try{ video.srcObject = null; }catch(e){} }
 }
+// a câmera desliga quando a tela sai de vista e volta quando reaparece
+document.addEventListener("visibilitychange", () => {
+  if(document.hidden) pararCamera();
+  else if($("t-scan").classList.contains("on")) iniciarCamera();
+});
 function abrirEscanear(){ clearInterval(feedTimer); mostrar("scan"); iniciarCamera(); }
 
 /* ── CLIENTE: mostra só o que vale agora ── */
