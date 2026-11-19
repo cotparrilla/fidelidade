@@ -101,6 +101,21 @@ decisões. Não pergunte de novo o que está aqui.
   devolve nome e aniversário a quem souber o telefone. Rever quando adaptarmos as telas
   do cliente.
 
+## Apple Wallet (instalado em 19/11/2026)
+
+- Conta Apple Developer: **pessoa física** de um sócio (a de organização foi travada porque o
+  site cadastrado era o do Côt, não o do Cotito). O cartão mostra "Cotito" mesmo assim
+  (`ORG_NAME`). Dá para converter para organização depois, pelo suporte da Apple.
+- Pass Type ID: `pass.com.cotparrilla.cotito` · Team ID: `J7XRT4K2KY`.
+- **Certificado vence em 19/12/2027.** Renovar antes: gerar novo certificado na Apple com
+  `infra/ligar-apple-wallet.sh pedido` e `instalar` (a chave fica em `~/cotito-apple/` no
+  Cloud Shell). Se vencer, os cartões param de atualizar.
+
+## Google Wallet
+
+- Emissor aprovado para publicação em nov/2026. Conta de serviço
+  `wallet@stoked-depth-514317-r5.iam.gserviceaccount.com`.
+
 ## Contas
 
 - Tudo em nome do Cotito/grupo, com o e-mail adm@cotparrilla.com.
