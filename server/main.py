@@ -13,7 +13,7 @@ import json
 import uuid
 import secrets
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 
@@ -43,6 +43,11 @@ PAGES_URL = os.environ.get("PAGES_URL", "https://cotparrilla.github.io/fidelidad
 
 def agora():
     return datetime.now(timezone.utc).isoformat()
+
+
+def _hoje_sp():
+    """Data de hoje no horario de Brasilia (UTC-3, sem horario de verao)."""
+    return (datetime.now(timezone.utc) - timedelta(hours=3)).date().isoformat()
 
 
 def so_digitos(s):
@@ -261,6 +266,8 @@ def _resumo_cliente(c):
         "proximo_brinde": st["proximo"],
         "brindes_pendentes": st["pendentes"],
         "texto_indicacoes": regras.texto_indicacoes(c, config),
+        # celular digitado no balcao: no maximo 1 beneficio por cliente por dia
+        "digitado_hoje": c.get("ultimo_digitado") == _hoje_sp(),
     }
 
 
@@ -320,11 +327,20 @@ def scan():
         r = _resumo_cliente(consumidor)
         acao = "mate" if r["mate_pendente"] else "premio" if r["premio_pendente"] else "ponto"
 
+    origem = "digitado" if dados.get("origem") == "digitado" else "qr"
+
     def evento(tipo, **extra):
         storage.salvar_evento({
             "id": str(uuid.uuid4()), "tipo": tipo, "telefone": telefone, "bar": bar,
-            "garcom_id": garcom_id, "data": agora(), **extra,
+            "garcom_id": garcom_id, "data": agora(), "origem": origem, **extra,
         })
+
+    # Celular digitado (QR nao leu): no maximo 1 beneficio por cliente por dia.
+    if origem == "digitado":
+        if consumidor.get("ultimo_digitado") == _hoje_sp():
+            evento("digitado_recusado", acao=acao)
+            return jsonify({"erro": "limite_digitado", "cliente": _resumo_cliente(consumidor)}), 409
+        consumidor["ultimo_digitado"] = _hoje_sp()   # so e gravado se a acao der certo
 
     def resposta(acao_feita, mensagem, push=None, **extra):
         return jsonify({
@@ -1544,7 +1560,7 @@ def atividade_bar(bar_id):
 
     eventos = [e for e in storage.listar_eventos()
                if (bar_id == "*" or e.get("bar") == bar_id)
-               and e.get("tipo") in ("punch", "resgate", "brinde", "ponto_bloqueado", "prato", "resgate_prato")]
+               and e.get("tipo") in ("punch", "resgate", "brinde", "ponto_bloqueado", "digitado_recusado", "prato", "resgate_prato")]
 
     if mes and mes != "todos":
         eventos = [e for e in eventos if (e.get("data") or "").startswith(mes)]
@@ -1579,6 +1595,7 @@ def atividade_bar(bar_id):
             "tipo": e.get("tipo"),
             "tipo_recompensa": e.get("tipo_recompensa"),
             "brinde": e.get("brinde"),
+            "origem": e.get("origem", "qr"),
             "colab": colabs.get(e.get("colab")) if e.get("colab") else None,
         } for e in pagina],
         "offset": offset,
